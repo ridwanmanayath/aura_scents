@@ -1,107 +1,4 @@
 {% load filter_tags %}
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sales Report</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-6">
-        <h1 class="text-2xl font-bold mb-6">Sales Report</h1>
-        
-        <!-- Filter Form -->
-        <form method="GET" class="mb-6 bg-white p-6 rounded shadow">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-sm font-medium">Filter Type</label>
-                    <select name="filter_type" onchange="this.form.submit()" class="w-full p-2 border rounded">
-                        <option value="daily" {% if filter_type == 'daily' %}selected{% endif %}>Daily</option>
-                        <option value="weekly" {% if filter_type == 'weekly' %}selected{% endif %}>Weekly</option>
-                        <option value="monthly" {% if filter_type == 'monthly' %}selected{% endif %}>Monthly</option>
-                        <option value="yearly" {% if filter_type == 'yearly' %}selected{% endif %}>Yearly</option>
-                        <option value="custom" {% if filter_type == 'custom' %}selected{% endif %}>Custom</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Start Date</label>
-                    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="w-full p-2 border rounded">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">End Date</label>
-                    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="w-full p-2 border rounded">
-                </div>
-                <div class="flex items-end">
-                    <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Apply Filters</button>
-                </div>
-            </div>
-        </form>
-        
-        <!-- Summary -->
-        <div class="bg-white p-6 rounded shadow mb-6">
-            <h2 class="text-lg font-semibold mb-4">Summary</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <p class="text-sm text-gray-600">Total Sales Count</p>
-                    <p class="text-lg font-bold">{{ total_sales_count }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-600">Total Order Amount</p>
-                    <p class="text-lg font-bold">₹{{ total_order_amount|floatformat:2 }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-600">Total Discount</p>
-                    <p class="text-lg font-bold">₹{{ total_discount|floatformat:2 }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-600">Net Sales</p>
-                    <p class="text-lg font-bold">₹{{ net_sales|floatformat:2 }}</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Export Buttons -->
-        <div class="mb-6">
-            <a href="?{% querystring export='pdf' %}" class="bg-green-500 text-white p-2 rounded hover:bg-green-600 mr-2">Export PDF</a>
-            <a href="?{% querystring export='excel' %}" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Export Excel</a>
-        </div>
-        
-        <!-- Orders Table -->
-        <div class="bg-white p-6 rounded shadow">
-            <h2 class="text-lg font-semibold mb-4">Orders</h2>
-            <table class="w-full border-collapse">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="p-2 border">Order ID</th>
-                        <th class="p-2 border">Date</th>
-                        <th class="p-2 border">Customer</th>
-                        <th class="p-2 border">Total Amount</th>
-                        <th class="p-2 border">Discount</th>
-                        <th class="p-2 border">Net Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td class="p-2 border">{{ order.order_id }}</td>
-                        <td class="p-2 border">{{ order.created_at|date:'Y-m-d' }}</td>
-                        <td class="p-2 border">{{ order.user.email }}</td>
-                        <td class="p-2 border">₹{{ order.total_amount|floatformat:2 }}</td>
-                        <td class="p-2 border">₹{{ order.discount|floatformat:2 }}</td>
-                        <td class="p-2 border">₹{{ order.total_amount|subtract:order.discount|floatformat:2 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="p-2 border text-center">No orders found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -119,7 +16,7 @@
 <body>
     <h1>Sales Report</h1>
     <p>Period: {{ start_date }} to {{ end_date }}</p>
-    
+
     <div class="summary">
         <h2>Summary</h2>
         <table class="summary-table">
@@ -141,7 +38,7 @@
             </tr>
         </table>
     </div>
-    
+
     <div class="orders">
         <h2>Orders</h2>
         <table>

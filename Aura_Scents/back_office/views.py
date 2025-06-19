@@ -664,7 +664,7 @@ def sales_report(request):
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=30)
     filter_type = request.GET.get('filter_type', 'custom')
-    
+
     # Handle preset filters
     if filter_type == 'daily':
         start_date = end_date
@@ -674,7 +674,7 @@ def sales_report(request):
         start_date = end_date - timedelta(days=30)
     elif filter_type == 'yearly':
         start_date = end_date - timedelta(days=365)
-    
+
     # Handle custom date range
     if request.GET.get('start_date'):
         try:
@@ -686,19 +686,19 @@ def sales_report(request):
             end_date = timezone.datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d').date()
         except ValueError:
             pass
-    
+
     # Query orders within date range
     orders = Order.objects.filter(
         created_at__date__gte=start_date,
         created_at__date__lte=end_date
     )
-    
+
     # Calculate metrics
     total_sales_count = orders.count()
     total_order_amount = orders.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
     total_discount = sum(order.discount for order in orders) or Decimal('0.00')
     net_sales = total_order_amount - total_discount
-    
+
     # Handle export
     export_format = request.GET.get('export')
     if export_format:
@@ -710,8 +710,9 @@ def sales_report(request):
             'total_discount': total_discount,
             'net_sales': net_sales,
             'orders': orders,
+            'request': request,  # Add request to context for PDF rendering
         }
-        
+
         if export_format == 'pdf':
             template = get_template('back_office/sales_report_pdf.html')
             html = template.render(context)
@@ -721,12 +722,12 @@ def sales_report(request):
             if pisa_status.err:
                 return HttpResponse('Error generating PDF', status=500)
             return response
-        
+
         elif export_format == 'excel':
             workbook = openpyxl.Workbook()
             worksheet = workbook.active
             worksheet.title = 'Sales Report'
-            
+
             # Headers
             headers = ['Order ID', 'Date', 'Customer', 'Total Amount', 'Discount', 'Net Amount']
             for col, header in enumerate(headers, 1):
@@ -735,7 +736,7 @@ def sales_report(request):
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='center')
                 cell.border = Border(bottom=Side(style='thin'))
-            
+
             # Data
             for row, order in enumerate(orders, 2):
                 worksheet.cell(row=row, column=1).value = order.order_id
@@ -744,19 +745,19 @@ def sales_report(request):
                 worksheet.cell(row=row, column=4).value = float(order.total_amount)
                 worksheet.cell(row=row, column=5).value = float(order.discount)
                 worksheet.cell(row=row, column=6).value = float(order.total_amount - order.discount)
-            
+
             # Summary
             summary_row = len(orders) + 3
             worksheet.cell(row=summary_row, column=1).value = 'Total'
             worksheet.cell(row=summary_row, column=4).value = float(total_order_amount)
             worksheet.cell(row=summary_row, column=5).value = float(total_discount)
             worksheet.cell(row=summary_row, column=6).value = float(net_sales)
-            
+
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = f'attachment; filename="sales_report_{start_date}_to_{end_date}.xlsx"'
             workbook.save(response)
             return response
-    
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -767,7 +768,7 @@ def sales_report(request):
         'net_sales': net_sales,
         'orders': orders,
     }
-    
+
     return render(request, 'back_office/sales_report.html', context)
 
 

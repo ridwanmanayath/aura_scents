@@ -43,8 +43,8 @@
 <div class="recent-orders">
     <h2>Orders</h2>
     <div class="actions export-buttons">
-        <a href="?{% querystring export='pdf' %}" class="btn btn-primary">Export PDF</a>
-        <a href="?{% querystring export='excel' %}" class="btn btn-primary">Export Excel</a>
+        <a href="{% url 'sales_report' %}?{% querystring filter_type=filter_type start_date=start_date|date:'Y-m-d' end_date=end_date|date:'Y-m-d' export='pdf' %}" class="btn btn-primary">Export PDF</a>
+        <a href="{% url 'sales_report' %}?{% querystring filter_type=filter_type start_date=start_date|date:'Y-m-d' end_date=end_date|date:'Y-m-d' export='excel' %}" class="btn btn-primary">Export Excel</a>
     </div>
     <table class="table">
         <thead>
