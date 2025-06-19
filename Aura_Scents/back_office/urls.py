@@ -30,6 +30,10 @@ urlpatterns = [
     path('coupons/', views.manage_coupons, name='manage_coupons'),
     path('coupon-delete/<int:coupon_id>/', views.delete_coupon, name='delete_coupon'),
 
+
+    path('offers/', views.manage_offers, name='manage_offers'),
+    path('offers/<int:offer_id>/delete/', views.delete_offer, name='delete_offer'),
+
     
     
 ]

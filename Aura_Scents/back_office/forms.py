@@ -3,7 +3,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
 from django import forms
-from .models import Product, ProductImage,Coupon
+from .models import Product,Category, ProductImage,Coupon,Offer,ProductOffer,CategoryOffer
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
@@ -43,4 +43,39 @@ class CouponForm(forms.ModelForm):
             self.add_error('max_discount_amount', "Maximum discount amount must be positive.")
 
         return cleaned_data
+    
 
+class OfferForm(forms.ModelForm):
+    class Meta:
+        model = Offer
+        fields = ['name', 'offer_type', 'discount_percentage', 'start_date', 'end_date', 'is_active']
+        widgets = {
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
+
+class ProductOfferForm(forms.ModelForm):
+    class Meta:
+        model = ProductOffer
+        fields = ['product']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['product'].queryset = Product.objects.filter(
+            is_deleted=False,
+            is_blocked=False
+        )
+        self.fields['product'].required = False  # Remove default required behavior
+
+class CategoryOfferForm(forms.ModelForm):
+    class Meta:
+        model = CategoryOffer
+        fields = ['category']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['category'].queryset = Category.objects.filter(
+            is_deleted=False,
+            is_blocked=False
+        )
+        self.fields['category'].required = False  # Remove default required behavior

@@ -1,14 +1,14 @@
 
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
-from .forms import UserLoginForm,CouponForm
+from django.http import JsonResponse
+
+from .forms import *
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 
 from django.contrib import messages
-
-from .models import User, Category
 
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -16,7 +16,7 @@ from django.db.models import Q
 from django.views.decorators.http import require_POST
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Product, ProductImage, Category,ProductVariant,Coupon
+from .models import *
 
 from uuid import uuid4
 import os
@@ -489,8 +489,6 @@ def update_order_status(request, order_id):
 
 
 # Coupon View
-from django.http import JsonResponse
-
 @login_required
 def manage_coupons(request):
     """View to manage coupons (create and edit)"""
@@ -542,6 +540,112 @@ def delete_coupon(request, coupon_id):
     else:
         messages.error(request, "Invalid request method.")
         return redirect('manage_coupons')
+    
+
+def manage_offers(request):
+    # Use select_related for Offer and prefetch_related for product_offer and category_offer
+    offers = Offer.objects.all().select_related().prefetch_related('product_offer__product', 'category_offer__category')
+    edit_offer = None
+    offer_form = OfferForm()
+    product_offer_form = ProductOfferForm()
+    category_offer_form = CategoryOfferForm()
+
+    if request.GET.get('edit'):
+        edit_offer = get_object_or_404(Offer, id=request.GET.get('edit'))
+        offer_form = OfferForm(instance=edit_offer)
+        if edit_offer.offer_type == 'product':
+            try:
+                product_offer = edit_offer.product_offer
+                product_offer_form = ProductOfferForm(instance=product_offer)
+            except ProductOffer.DoesNotExist:
+                product_offer_form = ProductOfferForm()
+        elif edit_offer.offer_type == 'category':
+            try:
+                category_offer = edit_offer.category_offer
+                category_offer_form = CategoryOfferForm(instance=category_offer)
+            except CategoryOffer.DoesNotExist:
+                category_offer_form = CategoryOfferForm()
+
+    if request.method == 'POST' and 'create_offer' in request.POST:
+        offer_form = OfferForm(request.POST, instance=edit_offer)
+        product_offer_form = ProductOfferForm(request.POST)
+        category_offer_form = CategoryOfferForm(request.POST)
+
+        is_valid = True
+
+        # Validate offer form
+        if not offer_form.is_valid():
+            is_valid = False
+
+        # Validate based on offer type
+        offer_type = offer_form.cleaned_data.get('offer_type') if offer_form.is_valid() else request.POST.get('offer_type')
+        if offer_type == 'product':
+            if not product_offer_form.is_valid() or not product_offer_form.cleaned_data.get('product'):
+                is_valid = False
+                product_offer_form.add_error('product', 'This field is required.')
+        elif offer_type == 'category':
+            if not category_offer_form.is_valid() or not category_offer_form.cleaned_data.get('category'):
+                is_valid = False
+                category_offer_form.add_error('category', 'This field is required.')
+
+        if is_valid:
+            offer = offer_form.save()
+
+            if offer.offer_type == 'product':
+                # Delete any existing CategoryOffer
+                CategoryOffer.objects.filter(offer=offer).delete()
+                try:
+                    # Check if a ProductOffer already exists
+                    product_offer = ProductOffer.objects.get(offer=offer)
+                    # Update existing ProductOffer
+                    product_offer.product = product_offer_form.cleaned_data['product']
+                    product_offer.save()
+                except ProductOffer.DoesNotExist:
+                    # Create new ProductOffer
+                    product_offer = product_offer_form.save(commit=False)
+                    product_offer.offer = offer
+                    product_offer.save()
+                messages.success(request, 'Product offer saved successfully!')
+                return redirect('manage_offers')
+            elif offer.offer_type == 'category':
+                # Delete any existing ProductOffer
+                ProductOffer.objects.filter(offer=offer).delete()
+                try:
+                    # Check if a CategoryOffer already exists
+                    category_offer = CategoryOffer.objects.get(offer=offer)
+                    # Update existing CategoryOffer
+                    category_offer.category = category_offer_form.cleaned_data['category']
+                    category_offer.save()
+                except CategoryOffer.DoesNotExist:
+                    # Create new CategoryOffer
+                    category_offer = category_offer_form.save(commit=False)
+                    category_offer.offer = offer
+                    category_offer.save()
+                messages.success(request, 'Category offer saved successfully!')
+                return redirect('manage_offers')
+        else:
+            if offer_form.is_valid() and not edit_offer:
+                offer = offer_form.save(commit=False)
+                offer.delete() # Clean up if invalid and new offer
+            messages.error(request, 'Invalid offer details.')
+
+    return render(request, 'back_office/manage_offers.html', {
+        'offers': offers,
+        'offer_form': offer_form,
+        'product_offer_form': product_offer_form,
+        'category_offer_form': category_offer_form,
+        'edit_offer': edit_offer,
+    })
+
+@require_POST
+def delete_offer(request, offer_id):
+    offer = get_object_or_404(Offer, id=offer_id)
+    offer_name = offer.name
+    offer.delete()
+    return JsonResponse({
+        'success': True,
+        'message': f'Offer "{offer_name}" deleted successfully!'
+    })
 
 
 

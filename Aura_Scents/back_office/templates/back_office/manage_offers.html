@@ -1,0 +1,721 @@
+{% extends "back_office/base.html" %}
+
+{% block title %}Manage Offers - Perfume Store{% endblock %}
+
+{% block page_title %}Manage Offers{% endblock %}
+
+{% block content %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Local Styling -->
+<style>
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="datetime-local"],
+.form-group select,
+.form-group textarea {
+    max-width: 400px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #f9f9f9;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.form-group select {
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%204%205'%3E%3Cpath%20fill%3D'%23333'%20d%3D'M2%200L0%202h4L2%200zm0%205L0%203h4L2%205z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+}
+
+.form-group select:focus,
+.form-group input:focus,
+.form-group textarea:focus {
+    border-color: #8a4baf;
+    outline: none;
+    background-color: #fff;
+}
+
+.form-label {
+    font-weight: bold;
+    color: #4a1c2d;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    vertical-align: middle;
+    accent-color: #8a4baf;
+}
+
+.btn {
+    padding: 10px 20px;
+    background-color: #8a4baf;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    background-color: #7b3d99;
+}
+
+.btn-danger {
+    background-color: #ff4444;
+    padding: 8px 15px;
+    font-size: 14px;
+    margin-top: 0;
+}
+
+.btn-danger:hover {
+    background-color: #cc0000;
+}
+
+.btn-edit {
+    background-color: #28a745;
+    padding: 8px 15px;
+    font-size: 14px;
+    margin-top: 0;
+    margin-right: 10px;
+}
+
+.btn-action {
+    padding: 8px 15px;
+    font-size: 14px;
+    margin-top: 0;
+    display: inline-block;
+    box-sizing: border-box;
+    width: 80px;
+    text-align: center;
+}
+
+.form-section {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4a1c2d;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #8a4baf;
+    padding-bottom: 10px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #ffd1dc;
+    font-weight: bold;
+    color: #4a1c2d;
+}
+
+.table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+.table tbody tr:nth-child(even) {
+    background-color: #f8f8f8;
+}
+
+.status-active {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-inactive {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.discount-badge {
+    background-color: #8a4baf;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.offer-name {
+    font-family: 'Courier New', monospace;
+    background-color: #f1f1f1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.related-item {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.no-data-message {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.form-errors {
+    background-color: #ffe6e6;
+    border: 1px solid #ff4444;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.form-errors p {
+    color: #cc0000;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.form-errors ul {
+    color: #cc0000;
+    margin-left: 20px;
+}
+
+.form-errors li {
+    margin-bottom: 5px;
+}
+
+.input-error {
+    border-color: #ff4444 !important;
+    background-color: #ffe6e6 !important;
+}
+
+.input-success {
+    border-color: #28a745 !important;
+    background-color: #e6ffe6 !important;
+}
+
+.hidden {
+    display: none;
+}
+</style>
+
+<!-- Create/Edit Offer Form Section -->
+<div class="form-section">
+    <h3 class="section-title">{% if offer_form.instance.id %}Edit Offer{% else %}Create New Offer{% endif %}</h3>
+
+    {% if offer_form.errors or product_offer_form.errors or category_offer_form.errors %}
+    <div class="form-errors">
+        <p>Please correct the following errors:</p>
+        <ul>
+            {% for field, errors in offer_form.errors.items %}
+                {% for error in errors %}
+                    <li>{{ field }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for field, errors in product_offer_form.errors.items %}
+                {% for error in errors %}
+                    <li>Product: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for field, errors in category_offer_form.errors.items %}
+                {% for error in errors %}
+                    <li>Category: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" class="form" id="offer-form">
+        {% csrf_token %}
+        <input type="hidden" name="create_offer" value="1">
+
+        <div class="form-group">
+            <label class="form-label" for="id_name">Offer Name:</label>
+            {{ offer_form.name }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_offer_type">Offer Type:</label>
+            {{ offer_form.offer_type }}
+        </div>
+
+        <div id="product-offer-fields" class="form-group {% if offer_form.instance.offer_type != 'product' and not offer_form.offer_type.value == 'product' %}hidden{% endif %}">
+            <label class="form-label" for="id_product">Product:</label>
+            {{ product_offer_form.product }}
+        </div>
+
+        <div id="category-offer-fields" class="form-group {% if offer_form.instance.offer_type != 'category' and not offer_form.offer_type.value == 'category' %}hidden{% endif %}">
+            <label class="form-label" for="id_category">Category:</label>
+            {{ category_offer_form.category }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_discount_percentage">Discount Percentage:</label>
+            {{ offer_form.discount_percentage }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_start_date">Start Date:</label>
+            {{ offer_form.start_date }}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_end_date">End Date:</label>
+            {{ offer_form.end_date }}
+        </div>
+
+        <div class="checkbox-group">
+            <label class="form-label" for="id_is_active">Is Active:</label>
+            {{ offer_form.is_active }}
+        </div>
+
+        <button type="submit" class="btn">
+            {% if offer_form.instance.id %}Update Offer{% else %}Create Offer{% endif %}
+        </button>
+        {% if offer_form.instance.id %}
+        <a href="{% url 'manage_offers' %}" class="btn btn-small" style="background-color: #6c757d; margin-left: 10px;">Cancel Edit</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Existing Offers Section -->
+<div class="form-section">
+    <h3 class="section-title">Existing Offers</h3>
+    {% if offers %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Discount</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for offer in offers %}
+            <tr>
+                <td><span class="offer-name">{{ offer.name }}</span></td>
+                <td>
+                    {{ offer.get_offer_type_display }}
+                    {% if offer.offer_type == 'product' and offer.product_offer %}
+                    <br><span class="related-item">{{ offer.product_offer.product.name }}</span>
+                    {% elif offer.offer_type == 'category' and offer.category_offer %}
+                    <br><span class="related-item">{{ offer.category_offer.category.name }}</span>
+                    {% endif %}
+                </td>
+                <td><span class="discount-badge">{{ offer.discount_percentage }}%</span></td>
+                <td>{{ offer.start_date|date:"Y-m-d H:i" }}</td>
+                <td>{{ offer.end_date|date:"Y-m-d H:i" }}</td>
+                <td>
+                    {% if offer.is_active %}
+                    <span class="status-active">Active</span>
+                    {% else %}
+                    <span class="status-inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'manage_offers' %}?edit={{ offer.id }}" class="btn btn-edit btn-action">Edit</a>
+                    <form method="post" class="inline delete-form" data-offer-name="{{ offer.name }}" action="{% url 'delete_offer' offer.id %}">
+                        {% csrf_token %}
+                        <button type="submit" name="delete_offer" class="btn btn-danger btn-action">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data-message">
+        <p>No offers available. Create your first offer using the form above.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript for SweetAlert2, form validation, and dynamic fields -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const offerForm = document.getElementById('offer-form');
+    const deleteForms = document.querySelectorAll('.delete-form');
+    const offerTypeSelect = document.querySelector('#id_offer_type');
+    const productFields = document.querySelector('#product-offer-fields');
+    const categoryFields = document.querySelector('#category-offer-fields');
+    const productSelect = document.querySelector('#id_product');
+    const categorySelect = document.querySelector('#id_category');
+    const startDateInput = document.querySelector('#id_start_date');
+    const endDateInput = document.querySelector('#id_end_date');
+    const discountInput = document.querySelector('#id_discount_percentage');
+    const offerNameInput = document.querySelector('#id_name');
+
+    // Function to get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Toggle product/category fields and manage required attribute
+    function toggleFields() {
+        const offerType = offerTypeSelect.value;
+        productFields.classList.toggle('hidden', offerType !== 'product');
+        categoryFields.classList.toggle('hidden', offerType !== 'category');
+
+        // Move fields to appear directly below offer type
+        const offerTypeGroup = offerTypeSelect.closest('.form-group');
+        if (offerType === 'product') {
+            offerTypeGroup.insertAdjacentElement('afterend', productFields);
+            categoryFields.removeAttribute('required');
+            productSelect.setAttribute('required', 'required');
+        } else if (offerType === 'category') {
+            offerTypeGroup.insertAdjacentElement('afterend', categoryFields);
+            productSelect.removeAttribute('required');
+            categorySelect.setAttribute('required', 'required');
+        } else {
+            productSelect.removeAttribute('required');
+            categorySelect.removeAttribute('required');
+        }
+    }
+
+    // Validate dates
+    function validateDates() {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        if (startDate && endDate && endDate <= startDate) {
+            endDateInput.classList.add('input-error');
+            return false;
+        }
+        endDateInput.classList.remove('input-error');
+        endDateInput.classList.add('input-success');
+        return true;
+    }
+
+    // Initial field toggle
+    toggleFields();
+    offerTypeSelect.addEventListener('change', toggleFields);
+
+    // Show success/error messages if present
+    {% if messages %}
+    {% for message in messages %}
+    Swal.fire({
+        icon: '{{ message.tags }}' === 'success' ? 'success' : 'error',
+        title: '{{ message.tags|title }}',
+        text: '{{ message }}',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000
+    });
+    {% endfor %}
+    {% endif %}
+
+    // Form validation for offer creation/edit form
+    offerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        let isValid = true;
+
+        // Validate required fields
+        const inputs = offerForm.querySelectorAll('input[required], select[required]');
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                input.classList.add('input-error');
+                input.classList.remove('input-success');
+                isValid = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: `Invalid ${input.name.replace('id_', '').replace('_', ' ')}`,
+                    text: `${input.name.replace('id_', '').replace('_', ' ')} is required.`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            } else {
+                input.classList.remove('input-error');
+                input.classList.add('input-success');
+            }
+        });
+
+        // Validate offer name
+        if (offerNameInput.value.trim().length < 3) {
+            offerNameInput.classList.add('input-error');
+            offerNameInput.classList.remove('input-success');
+            isValid = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Offer Name',
+                text: 'Offer name must be at least 3 characters long.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+
+        // Validate discount percentage
+        const discountValue = parseFloat(discountInput.value);
+        if (isNaN(discountValue) || discountValue <= 0 || discountValue > 100) {
+            discountInput.classList.add('input-error');
+            discountInput.classList.remove('input-success');
+            isValid = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Discount Percentage',
+                text: 'Discount percentage must be between 0 and 100.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+
+        // Validate dates
+        if (!validateDates()) {
+            isValid = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Dates',
+                text: 'End date must be after start date.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+
+        // Validate conditional fields
+        const offerType = offerTypeSelect.value;
+        if (offerType === 'product' && productSelect.required && !productSelect.value) {
+            productSelect.classList.add('input-error');
+            productSelect.classList.remove('input-success');
+            isValid = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Product Selection',
+                text: 'Please select a product for the offer.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+        if (offerType === 'category' && categorySelect.required && !categorySelect.value) {
+            categorySelect.classList.add('input-error');
+            categorySelect.classList.remove('input-success');
+            isValid = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Category Selection',
+                text: 'Please select a category for the offer.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+
+        if (isValid) {
+            offerForm.submit();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Form Validation Failed',
+                text: 'Please correct the highlighted fields.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+    });
+
+    // Real-time validation
+    offerForm.addEventListener('input', function(e) {
+        const input = e.target;
+        if (input.value.trim()) {
+            input.classList.remove('input-error');
+            input.classList.add('input-success');
+        } else if (input.required) {
+            input.classList.remove('input-success');
+            input.classList.add('input-error');
+        }
+
+        // Real-time date validation
+        if (input === startDateInput || input === endDateInput) {
+            validateDates();
+        }
+
+        // Real-time discount validation
+        if (input === discountInput) {
+            const value = parseFloat(input.value);
+            if (isNaN(value) || value <= 0 || value > 100) {
+                input.classList.add('input-error');
+                input.classList.remove('input-success');
+            } else {
+                input.classList.remove('input-error');
+                input.classList.add('input-success');
+            }
+        }
+
+        // Real-time offer name validation
+        if (input === offerNameInput && input.value.trim().length < 3) {
+            input.classList.add('input-error');
+            input.classList.remove('input-success');
+        }
+    });
+
+    // Delete confirmation with SweetAlert2
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const offerName = form.dataset.offerName;
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete the offer "${offerName}". This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff4444',
+                cancelButtonColor: '#8a4baf',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'OK'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Deleting...',
+                        text: 'Please wait while we delete the offer.',
+                        icon: 'info',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        willOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    const formData = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.close();
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: data.message,
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to delete the offer.',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 4000
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        Swal.close();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: `An error occurred: ${error.message}`,
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 4000
+                        });
+                    });
+                }
+            });
+        });
+    });
+
+    // Show form errors as toast if they exist
+    {% if offer_form.errors or product_offer_form.errors or category_offer_form.errors %}
+    Swal.fire({
+        icon: 'error',
+        title: 'Form Errors',
+        text: 'Please check the form for errors and try again.',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

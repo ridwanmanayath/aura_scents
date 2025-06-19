@@ -202,3 +202,85 @@ class Coupon(models.Model):
         return min(discount, order_total)  # Ensure discount doesn't exceed order total
 
 
+class Offer(models.Model):
+    OFFER_TYPES = [
+        ('product', 'Product Offer'),
+        ('category', 'Category Offer'),
+    ]
+    
+    name = models.CharField(max_length=255)
+    offer_type = models.CharField(max_length=20, choices=OFFER_TYPES)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)  # e.g., 30.00 for 30%
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_offer_type_display()})"
+    
+    def is_valid(self):
+        now = timezone.now()
+        return self.is_active and self.start_date <= now <= self.end_date
+
+class ProductOffer(models.Model):
+    offer = models.OneToOneField(Offer, on_delete=models.CASCADE, related_name='product_offer')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='offers')
+    
+    class Meta:
+        unique_together = ('offer', 'product')
+    
+    def __str__(self):
+        return f"{self.offer.name} for {self.product.name}"
+
+class CategoryOffer(models.Model):
+    offer = models.OneToOneField(Offer, on_delete=models.CASCADE, related_name='category_offer')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='offers')
+    
+    class Meta:
+        unique_together = ('offer', 'category')
+    
+    def __str__(self):
+        return f"{self.offer.name} for {self.category.name}"
+
+# Utility function to get best offer for a product
+def get_best_offer_for_product(product):
+    now = timezone.now()
+    
+    # Get valid product offers
+    product_offers = ProductOffer.objects.filter(
+        product=product,
+        offer__is_active=True,
+        offer__start_date__lte=now,
+        offer__end_date__gte=now
+    ).select_related('offer')
+    
+    # Get valid category offers
+    category_offers = CategoryOffer.objects.filter(
+        category=product.category,
+        offer__is_active=True,
+        offer__start_date__lte=now,
+        offer__end_date__gte=now
+    ).select_related('offer')
+    
+    best_discount = 0
+    best_offer = None
+    
+    # Check product offers
+    for po in product_offers:
+        if po.offer.discount_percentage > best_discount:
+            best_discount = po.offer.discount_percentage
+            best_offer = po.offer
+    
+    # Check category offers
+    for co in category_offers:
+        if co.offer.discount_percentage > best_discount:
+            best_discount = co.offer.discount_percentage
+            best_offer = co.offer
+    
+    return best_offer
+
+
