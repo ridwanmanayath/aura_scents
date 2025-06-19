@@ -26,6 +26,18 @@ from store.models import Order
 
 from django.db import transaction
 
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+from xhtml2pdf import pisa
+from io import BytesIO
+from django.template.loader import get_template
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side
+from django.db.models import Sum, Count
+
 
 
 #Admin View
@@ -646,6 +658,117 @@ def delete_offer(request, offer_id):
         'success': True,
         'message': f'Offer "{offer_name}" deleted successfully!'
     })
+
+def sales_report(request):
+    # Default filter: last 30 days
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=30)
+    filter_type = request.GET.get('filter_type', 'custom')
+    
+    # Handle preset filters
+    if filter_type == 'daily':
+        start_date = end_date
+    elif filter_type == 'weekly':
+        start_date = end_date - timedelta(days=7)
+    elif filter_type == 'monthly':
+        start_date = end_date - timedelta(days=30)
+    elif filter_type == 'yearly':
+        start_date = end_date - timedelta(days=365)
+    
+    # Handle custom date range
+    if request.GET.get('start_date'):
+        try:
+            start_date = timezone.datetime.strptime(request.GET.get('start_date'), '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    if request.GET.get('end_date'):
+        try:
+            end_date = timezone.datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    # Query orders within date range
+    orders = Order.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    )
+    
+    # Calculate metrics
+    total_sales_count = orders.count()
+    total_order_amount = orders.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    total_discount = sum(order.discount for order in orders) or Decimal('0.00')
+    net_sales = total_order_amount - total_discount
+    
+    # Handle export
+    export_format = request.GET.get('export')
+    if export_format:
+        context = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_sales_count': total_sales_count,
+            'total_order_amount': total_order_amount,
+            'total_discount': total_discount,
+            'net_sales': net_sales,
+            'orders': orders,
+        }
+        
+        if export_format == 'pdf':
+            template = get_template('back_office/sales_report_pdf.html')
+            html = template.render(context)
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="sales_report_{start_date}_to_{end_date}.pdf"'
+            pisa_status = pisa.CreatePDF(html, dest=response)
+            if pisa_status.err:
+                return HttpResponse('Error generating PDF', status=500)
+            return response
+        
+        elif export_format == 'excel':
+            workbook = openpyxl.Workbook()
+            worksheet = workbook.active
+            worksheet.title = 'Sales Report'
+            
+            # Headers
+            headers = ['Order ID', 'Date', 'Customer', 'Total Amount', 'Discount', 'Net Amount']
+            for col, header in enumerate(headers, 1):
+                cell = worksheet.cell(row=1, column=col)
+                cell.value = header
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal='center')
+                cell.border = Border(bottom=Side(style='thin'))
+            
+            # Data
+            for row, order in enumerate(orders, 2):
+                worksheet.cell(row=row, column=1).value = order.order_id
+                worksheet.cell(row=row, column=2).value = order.created_at.date()
+                worksheet.cell(row=row, column=3).value = order.user.email
+                worksheet.cell(row=row, column=4).value = float(order.total_amount)
+                worksheet.cell(row=row, column=5).value = float(order.discount)
+                worksheet.cell(row=row, column=6).value = float(order.total_amount - order.discount)
+            
+            # Summary
+            summary_row = len(orders) + 3
+            worksheet.cell(row=summary_row, column=1).value = 'Total'
+            worksheet.cell(row=summary_row, column=4).value = float(total_order_amount)
+            worksheet.cell(row=summary_row, column=5).value = float(total_discount)
+            worksheet.cell(row=summary_row, column=6).value = float(net_sales)
+            
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="sales_report_{start_date}_to_{end_date}.xlsx"'
+            workbook.save(response)
+            return response
+    
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'filter_type': filter_type,
+        'total_sales_count': total_sales_count,
+        'total_order_amount': total_order_amount,
+        'total_discount': total_discount,
+        'net_sales': net_sales,
+        'orders': orders,
+    }
+    
+    return render(request, 'back_office/sales_report.html', context)
 
 
 

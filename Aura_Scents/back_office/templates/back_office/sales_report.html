@@ -1,0 +1,126 @@
+{% extends 'back_office/base.html' %}
+{% load filter_tags %}
+
+{% block title %}Sales Report - Perfume Store{% endblock %}
+
+{% block page_title %}Sales Report{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-title">Total Sales Count</div>
+        <div class="stat-value">{{ total_sales_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Total Order Amount</div>
+        <div class="stat-value">₹{{ total_order_amount|floatformat:2 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Total Discount</div>
+        <div class="stat-value">₹{{ total_discount|floatformat:2 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Net Sales</div>
+        <div class="stat-value">₹{{ net_sales|floatformat:2 }}</div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h2>Filter Sales Data</h2>
+    <form method="GET" class="search-form">
+        <select name="filter_type" id="filterType" class="search-form select">
+            <option value="daily" {% if filter_type == 'daily' %}selected{% endif %}>Daily</option>
+            <option value="weekly" {% if filter_type == 'weekly' %}selected{% endif %}>Weekly</option>
+            <option value="monthly" {% if filter_type == 'monthly' %}selected{% endif %}>Monthly</option>
+            <option value="custom" {% if filter_type == 'custom' %}selected{% endif %}>Custom</option>
+        </select>
+        <input type="date" name="start_date" id="startDate" value="{{ start_date|date:'Y-m-d' }}" class="search-input">
+        <input type="date" name="end_date" id="endDate" value="{{ end_date|date:'Y-m-d' }}" class="search-input">
+        <button type="submit" class="search-form button">Apply Filters</button>
+    </form>
+</div>
+
+<div class="recent-orders">
+    <h2>Orders</h2>
+    <div class="actions export-buttons">
+        <a href="?{% querystring export='pdf' %}" class="btn btn-primary">Export PDF</a>
+        <a href="?{% querystring export='excel' %}" class="btn btn-primary">Export Excel</a>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Total Amount</th>
+                <th>Discount</th>
+                <th>Net Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_id }}</td>
+                <td>{{ order.created_at|date:'Y-m-d' }}</td>
+                <td>{{ order.user.email }}</td>
+                <td>₹{{ order.total_amount|floatformat:2 }}</td>
+                <td>₹{{ order.discount|floatformat:2 }}</td>
+                <td>₹{{ order.total_amount|subtract:order.discount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center">No orders found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterType = document.getElementById('filterType');
+    const startDate = document.getElementById('startDate');
+    const endDate = document.getElementById('endDate');
+
+    function setDateRange(filter) {
+        const today = new Date();
+        let start, end;
+
+        if (filter !== 'custom') {
+            end = new Date(today);
+            switch(filter) {
+                case 'daily':
+                    start = new Date(today);
+                    break;
+                case 'weekly':
+                    start = new Date(today);
+                    start.setDate(today.getDate() - 6);
+                    break;
+                case 'monthly':
+                    start = new Date(today);
+                    start.setDate(today.getDate() - 29);
+                    break;
+            }
+            // Format dates as YYYY-MM-DD
+            startDate.value = start.toISOString().split('T')[0];
+            endDate.value = end.toISOString().split('T')[0];
+        }
+
+        // Enable date inputs for custom filter, disable for others
+        startDate.disabled = filter !== 'custom';
+        endDate.disabled = filter !== 'custom';
+    }
+
+    // Set initial state based on current selection
+    setDateRange(filterType.value);
+
+    // Update dates when filter type changes
+    filterType.addEventListener('change', function() {
+        setDateRange(this.value);
+        if (this.value !== 'custom') {
+            this.form.submit();
+        }
+    });
+});
+</script>
+{% endblock %}
