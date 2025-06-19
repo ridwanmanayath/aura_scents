@@ -27,6 +27,9 @@ urlpatterns = [
     path('order-detail/<int:order_id>/', views.order_detail, name='order_details'),
     path('orders/<int:order_id>/update-status/', views.update_order_status, name='update_order_status'),
 
+    path('coupons/', views.manage_coupons, name='manage_coupons'),
+    path('coupon-delete/<int:coupon_id>/', views.delete_coupon, name='delete_coupon'),
+
     
     
 ]

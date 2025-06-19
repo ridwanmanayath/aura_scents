@@ -1,9 +1,10 @@
 
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
-from .forms import UserLoginForm
+from .forms import UserLoginForm,CouponForm
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 from django.contrib import messages
 
@@ -15,7 +16,7 @@ from django.db.models import Q
 from django.views.decorators.http import require_POST
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Product, ProductImage, Category,ProductVariant
+from .models import Product, ProductImage, Category,ProductVariant,Coupon
 
 from uuid import uuid4
 import os
@@ -485,6 +486,62 @@ def update_order_status(request, order_id):
         return redirect('order_details', order_id=order.id)
     
     return redirect('order_list')
+
+
+# Coupon View
+from django.http import JsonResponse
+
+@login_required
+def manage_coupons(request):
+    """View to manage coupons (create and edit)"""
+    coupons = Coupon.objects.all()
+
+    # Check if editing a coupon
+    edit_coupon_id = request.GET.get('edit')
+    if edit_coupon_id:
+        coupon = get_object_or_404(Coupon, id=edit_coupon_id)
+        form = CouponForm(request.POST or None, instance=coupon)
+    else:
+        form = CouponForm(request.POST or None)
+
+    if request.method == 'POST' and 'create_coupon' in request.POST:
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Coupon {'updated' if edit_coupon_id else 'created'} successfully!")
+            return redirect('manage_coupons')
+        else:
+            messages.error(request, "Please correct the errors below.")
+
+    return render(request, 'back_office/manage_coupons.html', {'form': form, 'coupons': coupons})
+
+@login_required
+def delete_coupon(request, coupon_id):
+    """View to delete a specific coupon"""
+    if request.method == 'POST':
+        coupon = get_object_or_404(Coupon, id=coupon_id)
+        coupon_code = coupon.code  # Store coupon code for response
+        try:
+            coupon.delete()
+            message = f"Coupon '{coupon_code}' deleted successfully!"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': message
+                })
+            messages.success(request, message)
+            return redirect('manage_coupons')
+        except Exception as e:
+            message = f"Failed to delete coupon '{coupon_code}'. Error: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'message': message
+                }, status=500)
+            messages.error(request, message)
+            return redirect('manage_coupons')
+    else:
+        messages.error(request, "Invalid request method.")
+        return redirect('manage_coupons')
 
 
 
