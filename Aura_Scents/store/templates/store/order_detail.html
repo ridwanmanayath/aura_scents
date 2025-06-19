@@ -1,0 +1,380 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block title %}Order Details | Aura Scents{% endblock %}
+
+{% block extra_head %}
+<!-- SweetAlert2 via official jsDelivr CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{% endblock %}
+
+{% block content %}
+<section class="py-12 px-4 sm:px-6 lg:px-8">
+<div class="container mx-auto flex gap-8">
+
+<!-- Sidebar (1/4 width) -->
+{% include 'store/user_sidebar.html' %}
+
+<!-- Order Detail Section (3/4 width) -->
+<div class="w-full sm:w-3/4 bg-white p-8 rounded-lg shadow-lg">
+<h2 class="text-4xl font-playfair font-bold text-purple-800 mb-8 text-center">Order Details</h2>
+
+<!-- Order Summary -->
+<div class="mb-10 border-b pb-6">
+<h3 class="text-2xl font-semibold text-purple-700 mb-4">Order Summary</h3>
+<div class="space-y-2 text-base sm:text-lg">
+<p><span class="text-gray-700 font-semibold">Order ID:</span> <span class="text-purple-800 font-bold">#{{ order.order_id }}</span></p>
+<p><span class="text-gray-700 font-semibold">Order Date & Time:</span> <span class="text-gray-800">{{ order.created_at|date:"d/m/Y, h:i A" }}</span></p>
+<p><span class="text-gray-700 font-semibold">Payment Method:</span> <span class="text-gray-800">{{ order.payment_method }}</span></p>
+<p><span class="text-gray-700 font-semibold">Payment Status:</span>
+{% if order.is_paid %}
+<span class="text-green-600 font-medium">Paid</span>
+{% else %}
+<span class="text-yellow-600 font-medium">Pending</span>
+{% endif %}
+</p>
+<p><span class="text-gray-700 font-semibold">Delivery Status:</span>
+<span class="{% if order.status == 'Delivered' %}text-green-600{% elif order.status == 'Cancelled' %}text-red-600{% elif order.status == 'Return Requested' %}text-orange-600{% else %}text-blue-600{% endif %} font-medium">
+{{ order.status }}
+</span>
+</p>
+<p><span class="text-gray-700 font-semibold">Shipping Address:</span>
+<span class="text-gray-800">
+{{ shipping_address.first_name }} {{ shipping_address.last_name }},
+{{ shipping_address.mobile_number }},
+{{ shipping_address.address }},
+{{ shipping_address.city }}, {{ shipping_address.state }}, {{ shipping_address.pincode }}
+{% if shipping_address.alternate_mobile_number %}
+(Alt: {{ shipping_address.alternate_mobile_number }})
+{% endif %}
+</span>
+</p>
+</div>
+</div>
+
+<!-- Products -->
+<div class="mb-10">
+<h3 class="text-2xl font-semibold text-purple-700 mb-6">Product Details</h3>
+
+{% for item in order_items %}
+<!-- Product Item -->
+<div class="flex items-center justify-between gap-4 mb-6 p-4 border rounded-lg hover:shadow-sm transition">
+<div class="flex items-center gap-4">
+<img src="{% if item.product.images.all %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/default-product.jpg' %}{% endif %}"
+alt="{{ item.product.name }}"
+class="w-24 h-24 object-cover rounded-md" />
+<div>
+<p class="font-semibold text-purple-800 text-lg">{{ item.product.name }}</p>
+<p class="text-sm text-gray-700">Quantity: <span class="font-medium text-gray-900">{{ item.quantity }}</span></p>
+<p class="text-sm text-gray-700">Unit Price: <span class="text-gray-900">₹{{ item.price|floatformat:2 }}</span></p>
+<p class="text-sm text-gray-700">Subtotal: <span class="text-green-700 font-semibold">₹{{ item.subtotal|floatformat:2 }}</span></p>
+<p class="text-sm text-gray-700">Item Status:
+<span class="{% if order.status == 'Delivered' %}text-green-600{% elif order.status == 'Cancelled' %}text-red-600{% elif order.status == 'Return Requested' %}text-orange-600{% else %}text-blue-600{% endif %} font-medium">
+{{ order.status }}
+</span>
+</p>
+</div>
+</div>
+
+<!-- Cancel/Return Buttons -->
+<div class="flex flex-col gap-2">
+{% if order.status not in 'Delivered,Cancelled,Returned' %}
+<button
+    onclick="return showCancelModal('{{ order.order_id }}', '{{ item.id }}')"
+    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+>
+    Cancel Item
+</button>
+{% endif %}
+
+{% if order.status == 'Delivered' %}
+<button
+    onclick="return showReturnModal('{{ order.order_id }}', '{{ item.id }}')"
+    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+>
+    Return Item
+</button>
+{% endif %}
+</div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Total Summary -->
+<div class="border-t pt-6">
+<h3 class="text-2xl font-semibold text-purple-700 mb-4">Total Summary</h3>
+<div class="space-y-3 text-base sm:text-lg text-gray-800">
+<p class="flex justify-between">
+<span>Subtotal:</span>
+<span>₹{{ order.subtotal|floatformat:2 }}</span>
+</p>
+
+{% if order.discount > 0 %}
+<p class="flex justify-between">
+<span>Discount:</span>
+<span class="text-green-700 font-medium">- ₹{{ order.discount|floatformat:2 }}</span>
+</p>
+{% endif %}
+
+<p class="flex justify-between">
+<span>Tax (5%):</span>
+<span>₹{{ order.tax|floatformat:2 }}</span>
+</p>
+
+<p class="flex justify-between">
+<span>Shipping Fee:</span>
+<span>
+{% if order.shipping_cost == 0 %}
+<span class="text-green-700">Free Shipping</span>
+{% else %}
+₹{{ order.shipping_cost|floatformat:2 }}
+{% endif %}
+</span>
+</p>
+
+<p class="flex justify-between text-xl font-bold text-purple-800 border-t pt-3">
+<span>Grand Total:</span>
+<span>₹{{ order.total|floatformat:2 }}</span>
+</p>
+</div>
+
+<div class="mt-8 flex justify-between">
+<a href="{% url 'orders' %}" class="inline-block bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-md text-base font-semibold transition">
+Back to Orders
+</a>
+<a href="{% url 'download_invoice' order_id=order.order_id %}" class="inline-block bg-purple-800 hover:bg-purple-700 text-white py-3 px-6 rounded-md text-base font-semibold transition">
+Download Invoice
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Load scripts at the bottom of content (before extra_scripts) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Make functions globally available
+window.showCancelModal = function(orderId, itemId) {
+    console.log('Cancel button clicked for item:', itemId, 'in order:', orderId);
+    Swal.fire({
+        title: `Cancel Item in Order ${orderId}?`,
+        text: "Please select a reason for cancellation:",
+        icon: 'warning',
+        input: 'select',
+        inputOptions: {
+            'Changed my mind': 'Changed my mind',
+            'Found better price elsewhere': 'Found better price elsewhere',
+            'Ordered by mistake': 'Ordered by mistake',
+            'other': 'Other (please specify)'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonText: 'Cancel Item',
+        cancelButtonText: 'Keep Item',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Please select a reason for cancellation';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let reason = result.value;
+
+            if (reason === 'other') {
+                Swal.fire({
+                    title: 'Please specify your reason',
+                    input: 'textarea',
+                    inputPlaceholder: 'Enter your cancellation reason...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Cancel Item',
+                    cancelButtonText: 'Back',
+                    confirmButtonColor: '#dc2626',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Please provide a reason for cancellation';
+                        }
+                    }
+                }).then((customResult) => {
+                    if (customResult.isConfirmed) {
+                        processCancelItem(orderId, itemId, customResult.value);
+                    }
+                });
+            } else {
+                processCancelItem(orderId, itemId, reason);
+            }
+        }
+    });
+    return false; // Prevent default action
+};
+
+// Process Cancel Item
+function processCancelItem(orderId, itemId, reason) {
+    console.log('Processing cancellation for item:', itemId, 'in order:', orderId, 'Reason:', reason);
+    fetch(`/orders/cancel-item/${orderId}/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: 'Item Cancelled!',
+                text: data.message,
+                icon: 'success',
+                confirmButtonColor: '#7c3aed'
+            }).then(() => {
+                // Reload the page to reflect changes
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                title: 'Error!',
+                text: data.message || 'Failed to cancel item',
+                icon: 'error',
+                confirmButtonColor: '#7c3aed'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error!',
+            text: 'An unexpected error occurred. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#7c3aed'
+        });
+    });
+}
+
+window.showReturnModal = function(orderId, itemId) {
+    console.log('Return button clicked for item:', itemId, 'in order:', orderId);
+    Swal.fire({
+        title: `Return Item in Order ${orderId}`,
+        text: "Please select a reason for return:",
+        icon: 'question',
+        input: 'select',
+        inputOptions: {
+            'Product damaged/defective': 'Product damaged/defective',
+            'Wrong item received': 'Wrong item received',
+            'Not as described': 'Not as described',
+            'other': 'Other (please specify)'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonText: 'Request Return',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#6b7280',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Please select a reason for return';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let reason = result.value;
+
+            if (reason === 'other') {
+                Swal.fire({
+                    title: 'Please specify your reason',
+                    input: 'textarea',
+                    inputPlaceholder: 'Enter your return reason...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Request Return',
+                    cancelButtonText: 'Back',
+                    confirmButtonColor: '#f59e0b',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Please provide a reason for return';
+                        }
+                    }
+                }).then((customResult) => {
+                    if (customResult.isConfirmed) {
+                        processReturnItem(orderId, itemId, customResult.value);
+                    }
+                });
+            } else {
+                processReturnItem(orderId, itemId, reason);
+            }
+        }
+    });
+    return false; // Prevent default action
+};
+
+// Process Return Item
+function processReturnItem(orderId, itemId, reason) {
+    console.log('Processing return for item:', itemId, 'in order:', orderId, 'Reason:', reason);
+    fetch(`/orders/return-item/${orderId}/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: 'Return Requested!',
+                text: data.message,
+                icon: 'success',
+                confirmButtonColor: '#7c3aed'
+            }).then(() => {
+                // Reload the page to reflect changes
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                title: 'Error!',
+                text: data.message || 'Failed to process return',
+                icon: 'error',
+                confirmButtonColor: '#7c3aed'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error!',
+            text: 'An unexpected error occurred. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#7c3aed'
+        });
+    });
+}
+
+// Get CSRF Token
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

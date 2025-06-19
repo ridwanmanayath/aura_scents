@@ -1,0 +1,332 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %} {{ product.name }} | Aura Scents {% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="bg-purple-50 py-4">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center text-sm">
+      <a
+        href="{% url 'home_page' %}"
+        class="text-gray-600 hover:text-purple-800"
+        >Home</a
+      >
+      <svg
+        class="h-4 w-4 mx-2 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5l7 7-7 7"
+        />
+      </svg>
+      <a
+        href="{% url 'products_page' %}"
+        class="text-gray-600 hover:text-purple-800"
+        >{{ product.category.name }}</a
+      >
+      <svg
+        class="h-4 w-4 mx-2 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5l7 7-7 7"
+        />
+      </svg>
+      <span class="text-purple-800">{{ product.name }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Product Section -->
+<section class="py-8">
+  <div class="container mx-auto px-4">
+    <div class="flex flex-col md:flex-row -mx-4">
+      <!-- Product Images -->
+      <div class="md:w-1/2 px-4 mb-6 md:mb-0">
+        <div class="product-image-container">
+          <!-- Wrap the image and zoom box in a relative container -->
+          <div class="relative" id="zoomContainer">
+            <!-- Product Image -->
+            <div
+              id="zoomWrapper"
+              class="relative bg-purple-50 rounded-lg overflow-hidden h-80 md:h-96"
+            >
+              <img
+                id="mainImage"
+                src="{{ product.images.first.image.url }}"
+                data-zoom="{{ product.images.first.image.url }}"
+                alt="{{ product.name }}"
+                class="w-full h-full object-contain"
+              />
+              <div id="zoomLens" class="absolute hidden"></div>
+            </div>
+
+            <!-- Zoom Box floats on top and hides content below -->
+            <div
+              id="zoomResult"
+              class="hidden absolute top-0 left-0 w-full h-full bg-white shadow-lg z-50 rounded-lg"
+            ></div>
+          </div>
+
+          <div class="flex space-x-2">
+            {% for image in product.images.all %}
+            <div
+              class="thumbnail-container cursor-pointer {% if forloop.first %}border-purple-600{% else %}border-gray-200{% endif %} border-2 rounded-md overflow-hidden w-20 h-20"
+              onclick="changeImage({{ forloop.counter0 }})"
+            >
+              <img
+                src="{{ image.image.url }}"
+                data-zoom="{{ image.image.url }}"
+                alt="Thumbnail {{ forloop.counter }}"
+                class="w-full h-full object-cover"
+                data-index="{{ forloop.counter0 }}"
+                onclick="changeImage(this)"
+              />
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Info -->
+      <div class="md:w-1/2 px-4">
+        <h1 class="text-3xl font-playfair font-bold text-purple-900 mb-2">
+          {{ product.name }}
+        </h1>
+        <p class="text-sm text-purple-600 mb-4">{{ product.category.name }}</p>
+
+        <!-- Price -->
+        <div class="mb-6">
+          <span class="text-2xl font-bold text-purple-800"
+            >${{ product.price }}</span
+          >
+        </div>
+
+        <!-- Stock Status -->
+        <div class="mb-6">
+          <p class="text-sm">
+            Availability: {% if product.stock > 0 %}
+            <span class="text-green-600">In Stock: {{ product.stock }}</span>
+            {% else %}
+            <span class="text-red-600">Out of Stock</span>
+            {% endif %}
+          </p>
+        </div>
+
+        <!-- Short Description -->
+        <p class="text-gray-600 mb-6">
+          {{ product.short_description|default:"Experience our luxurious unisex
+          perfume." }}
+        </p>
+
+        <!-- Quantity Selector -->
+        <div class="flex items-center mb-6">
+          <span class="mr-4 text-gray-700">Quantity:</span>
+          <div class="flex items-center border border-gray-300 rounded-md">
+            <button
+              class="px-3 py-2 text-gray-600 hover:bg-gray-100"
+              onclick="updateQuantity('decrease')"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20 12H4"
+                />
+              </svg>
+            </button>
+            <span
+              id="quantity"
+              class="px-4 py-2 border-l border-r border-gray-300"
+              >1</span
+            >
+            <button
+              class="px-3 py-2 text-gray-600 hover:bg-gray-100"
+              onclick="updateQuantity('increase')"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Add to Cart -->
+        <div class="flex space-x-4 mb-8">
+          <form action="" method="POST" class="flex-grow">
+            {% csrf_token %}
+            <input type="hidden" name="quantity" value="1" id="form-quantity" />
+            <button
+              type="submit"
+              class="bg-pink-500 text-white px-8 py-3 rounded-full font-medium hover:bg-pink-600 transition duration-300 w-full"
+            >
+              Add to Cart
+            </button>
+          </form>
+          <button
+            class="border border-gray-300 p-3 rounded-full hover:bg-gray-100 transition duration-300"
+          >
+            <i class="fa-regular fa-heart text-gray-600"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Product Tabs -->
+<section class="py-8 bg-purple-50">
+  <div class="container mx-auto px-4">
+    <div class="border-b border-gray-200 mb-6">
+      <div class="flex space-x-8">
+        <button
+          class="pb-4 font-medium text-purple-800 border-b-2 border-purple-800 tab-button"
+          data-tab="description"
+        >
+          Description
+        </button>
+      </div>
+    </div>
+
+    <div class="py-4">
+      <!-- Description Tab -->
+      <div id="description" class="tab-content">
+        <h3 class="text-xl font-playfair font-bold text-purple-900 mb-4">
+          Product Description
+        </h3>
+        <p class="text-gray-600 mb-4">{{ product.description|linebreaks }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Related Products -->
+{% if related_products %}
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <h2 class="text-2xl font-playfair font-bold text-purple-900 mb-8">
+      You May Also Like
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      {% for related in related_products %}
+      <a href="{% url 'product_detail' related.id %}" class="block">
+  <div class="product-card">
+    <div class="bg-purple-100 rounded-lg p-4 mb-3">
+      <img
+        src="{{ related.images.first.image.url|default:'/static/store/placeholder.svg' }}"
+        alt="{{ related.name }}"
+        class="mx-auto h-40 object-contain"
+      />
+    </div>
+    <h3 class="font-medium">{{ related.name }}</h3>
+    <p class="text-purple-800 font-bold">${{ related.price }}</p>
+  </div>
+</a>
+
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- JS for Zoom & Tabs -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const mainImage = document.getElementById("mainImage");
+  const zoomLens = document.getElementById("zoomLens");
+  const zoomResult = document.getElementById("zoomResult");
+
+  if (!mainImage || !zoomLens || !zoomResult) return;
+
+  const lensSize = 100;
+
+  mainImage.addEventListener("mouseenter", () => {
+    zoomLens.classList.remove("hidden");
+    zoomResult.style.opacity = "1";
+    zoomResult.style.backgroundImage = `url('${mainImage.dataset.zoom}')`;
+  });
+
+  mainImage.addEventListener("mouseleave", () => {
+    zoomLens.classList.add("hidden");
+    zoomResult.style.opacity = "0";
+  });
+
+  mainImage.addEventListener("mousemove", moveLens);
+
+  function moveLens(e) {
+    const bounds = mainImage.getBoundingClientRect();
+    let x = e.clientX - bounds.left - lensSize / 2;
+    let y = e.clientY - bounds.top - lensSize / 2;
+
+    x = Math.max(0, Math.min(x, bounds.width - lensSize));
+    y = Math.max(0, Math.min(y, bounds.height - lensSize));
+
+    zoomLens.style.left = `${x}px`;
+    zoomLens.style.top = `${y}px`;
+
+    const cx = zoomResult.offsetWidth / lensSize;
+    const cy = zoomResult.offsetHeight / lensSize;
+
+    zoomResult.style.backgroundSize = `${mainImage.offsetWidth * cx}px ${mainImage.offsetHeight * cy}px`;
+    zoomResult.style.backgroundPosition = `-${x * cx}px -${y * cy}px`;
+
+    // Move zoomResult with cursor if desired
+    const pageX = e.pageX;
+    const pageY = e.pageY;
+    zoomResult.style.left = `${pageX + 20}px`; // offset right
+    zoomResult.style.top = `${pageY - 150}px`; // offset up a bit
+  }
+});
+
+function changeImage(thumb) {
+  const mainImage = document.getElementById("mainImage");
+  const zoomResult = document.getElementById("zoomResult");
+
+  const newSrc = thumb.getAttribute("src");
+  const newZoom = thumb.getAttribute("data-zoom");
+
+  mainImage.src = newSrc;
+  mainImage.setAttribute("data-zoom", newZoom);
+
+  if (zoomResult) {
+    zoomResult.style.backgroundImage = `url('${newZoom}')`;
+  }
+
+  // Optional: highlight the selected thumbnail
+  const thumbnails = document.querySelectorAll(".thumbnail-container");
+  thumbnails.forEach(el => el.classList.remove("border-purple-600"));
+  thumb.parentElement.classList.add("border-purple-600");
+}
+
+</script>
+
+
+{% endblock %}

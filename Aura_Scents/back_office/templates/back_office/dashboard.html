@@ -1,0 +1,73 @@
+
+{% extends 'back_office/base.html' %}
+
+{% block title %}Admin Dashboard - Perfume Store{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-title">Total Sales</div>
+        <div class="stat-value">₹9,69,000</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Total Orders</div>
+        <div class="stat-value">4,596</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Total Users</div>
+        <div class="stat-value">3,796</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Total Products</div>
+        <div class="stat-value">1,234</div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h2>Sales Overview</h2>
+    <div class="chart-placeholder">
+        <!-- Placeholder for chart -->
+        <p>Sales chart will be displayed here</p>
+    </div>
+</div>
+
+<div class="recent-orders">
+    <h2>Recent Orders</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Amount</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>#12345</td>
+                <td>John Doe</td>
+                <td>Floral Essence</td>
+                <td>₹5,999</td>
+                <td><span class="status-badge status-completed">Completed</span></td>
+            </tr>
+            <tr>
+                <td>#12346</td>
+                <td>Jane Smith</td>
+                <td>Ocean Breeze</td>
+                <td>₹4,599</td>
+                <td><span class="status-badge status-processing">Processing</span></td>
+            </tr>
+            <tr>
+                <td>#12347</td>
+                <td>Mike Johnson</td>
+                <td>Woody Musk</td>
+                <td>₹6,299</td>
+                <td><span class="status-badge status-shipped">Shipped</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

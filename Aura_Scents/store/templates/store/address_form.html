@@ -1,0 +1,111 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% load form_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<main class="container mx-auto px-4 py-12 flex flex-col lg:flex-row gap-10">
+  {% include 'store/user_sidebar.html' %}
+
+  <section class="flex-1 bg-white rounded-lg shadow-md p-8">
+    <h2 class="text-2xl font-playfair font-bold text-purple-800 mb-6">{{ title }}</h2>
+
+    <form method="POST" class="space-y-6">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      {% with "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-purple-500 focus:border-purple-500" as input_class %}
+      {% with input_class|add:" digit-only" as digit_input_class %}
+      {% with input_class|add:" resize-none" as textarea_class %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          {{ form.first_name.label_tag }}
+          {{ form.first_name|add_class:input_class }}
+        </div>
+        <div>
+          {{ form.last_name.label_tag }}
+          {{ form.last_name|add_class:input_class }}
+        </div>
+        <div>
+          {{ form.city.label_tag }}
+          {{ form.city|add_class:input_class }}
+        </div>
+        <div>
+          {{ form.state.label_tag }}
+          {{ form.state|add_class:input_class }}
+        </div>
+        <div>
+          {{ form.pincode.label_tag }}
+          {{ form.pincode|add_class:digit_input_class }}
+        </div>
+        <div class="md:col-span-2">
+          {{ form.address.label_tag }}
+          {{ form.address|add_class:textarea_class }}
+        </div>
+        <div>
+          {{ form.mobile_number.label_tag }}
+          {{ form.mobile_number|add_class:digit_input_class }}
+        </div>
+        <div>
+          {{ form.alternate_mobile_number.label_tag }}
+          {{ form.alternate_mobile_number|add_class:digit_input_class }}
+        </div>
+      </div>
+      {% endwith %}
+      {% endwith %}
+      {% endwith %}
+
+      <div>
+        <button type="submit" class="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-6 rounded-md w-full">
+          {{ button_text }}
+        </button>
+      </div>
+
+      <!-- Hidden inputs to store field errors for JS -->
+      {% for field in form %}
+        {% for error in field.errors %}
+          <input type="hidden" class="field-error" data-message="{{ error }}" data-field="{{ field.label }}" />
+        {% endfor %}
+      {% endfor %}
+    </form>
+  </section>
+</main>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Enforce digit-only inputs
+    document.querySelectorAll('.digit-only').forEach(function (input) {
+      input.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '');
+      });
+    });
+
+    // Toast Alert for form validation errors
+    const fieldErrors = document.querySelectorAll('.field-error');
+    fieldErrors.forEach(function (el) {
+      const field = el.dataset.field;
+      const message = el.dataset.message;
+
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: `${field}: ${message}`,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000,
+        timerProgressBar: true,
+        background: '#fef2f2',
+        color: '#991b1b',
+        didOpen: (toast) => {
+          toast.addEventListener('mouseenter', Swal.stopTimer)
+          toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

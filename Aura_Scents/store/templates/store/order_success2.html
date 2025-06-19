@@ -1,0 +1,36 @@
+{% extends 'store/base.html' %}
+
+{% block title %}Order Confirmation | Aura Scents{% endblock %}
+
+{% block content %}
+  <!-- Thank You Section -->
+  <section class="bg-gradient-to-r from-purple-600 to-pink-600 py-16">
+    <div class="container mx-auto px-6 text-center">
+      <!-- Title -->
+      <h2 class="text-4xl font-playfair font-bold text-white mb-6">Order Completed</h2>
+
+      <!-- Separated Order Confirmation Messages -->
+      <p class="text-lg text-white mb-4 leading-relaxed max-w-lg mx-auto">
+        Thank you for your order!
+      </p>
+      
+      <p class="text-lg text-white mb-4 leading-relaxed max-w-lg mx-auto">
+        Your order is being processed and will be completed within 3-6 hours.
+      </p>
+      
+      <p class="text-lg text-white mb-8 leading-relaxed max-w-lg mx-auto">
+        We are preparing your items for shipment, and you will receive an update shortly.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-center space-x-6">
+        <a href="{% url 'products_page' %}" class="inline-block bg-green-600 hover:bg-green-500 text-white py-3 px-8 rounded-lg text-lg font-semibold transition duration-300 transform hover:scale-105">
+          Continue Shopping
+        </a>
+        <a href="{% url 'orders' %}" class="inline-block bg-pink-500 hover:bg-pink-600 text-white py-3 px-8 rounded-lg text-lg font-semibold transition duration-300 transform hover:scale-105">
+          View Order
+        </a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

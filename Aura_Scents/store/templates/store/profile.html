@@ -1,0 +1,517 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block title %}My Profile | Aura Scents{% endblock %}
+
+{% block extra_head %}
+<!-- SweetAlert2 via official jsDelivr CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+<div class="container mx-auto flex gap-12">
+
+{% include 'store/user_sidebar.html' %}
+
+<!-- Main Content -->
+<div class="w-3/4 bg-white p-8 rounded-lg shadow-lg">
+<h2 class="text-3xl font-playfair font-bold text-purple-800 text-center mb-6">Your Profile</h2>
+
+<!-- Profile Image Section -->
+<div class="flex justify-center mb-8">
+<div class="relative">
+{% if user.profile_image %}
+<img src="{{ user.profile_image.url }}" alt="Profile Picture"
+class="w-32 h-32 rounded-full object-cover border-4 border-purple-200 shadow-lg">
+{% else %}
+<div class="w-32 h-32 rounded-full bg-purple-200 flex items-center justify-center border-4 border-purple-300 shadow-lg">
+<svg class="w-16 h-16 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+</svg>
+</div>
+{% endif %}
+</div>
+</div>
+
+<!-- Personal Information -->
+<div class="space-y-6">
+<h3 class="text-xl font-playfair font-semibold text-purple-700">Personal Information</h3>
+
+<div class="grid grid-cols-2 gap-6">
+<div>
+<label class="block text-sm font-medium text-gray-700">First Name</label>
+<p class="text-sm text-gray-900">{{ user.first_name|default:"-" }}</p>
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700">Last Name</label>
+<p class="text-sm text-gray-900">{{ user.last_name|default:"-" }}</p>
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+<div>
+<label class="block text-sm font-medium text-gray-700">City/District/Town</label>
+<p class="text-sm text-gray-900">
+{% if address and address.city %}
+{{ address.city }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700">State</label>
+<p class="text-sm text-gray-900">
+{% if address and address.state %}
+{{ address.state }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+<div>
+<label class="block text-sm font-medium text-gray-700">Address</label>
+<p class="text-sm text-gray-900">
+{% if address and address.address %}
+{{ address.address }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700">Pin Code</label>
+<p class="text-sm text-gray-900">
+{% if address and address.pincode %}
+{{ address.pincode }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+</div>
+
+<!-- Contact Information -->
+<h3 class="text-xl font-playfair font-semibold text-purple-700 mt-8">Contact Information</h3>
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+<div>
+<label class="block text-sm font-medium text-gray-700">Mobile Number</label>
+<p class="text-sm text-gray-900">
+{% if address and address.mobile_number %}
+{{ address.mobile_number }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700">Alternate Number</label>
+<p class="text-sm text-gray-900">
+{% if address and address.alternate_mobile_number %}
+{{ address.alternate_mobile_number }}
+{% else %}
+-
+{% endif %}
+</p>
+</div>
+</div>
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+<div>
+<label class="block text-sm font-medium text-gray-700">Email</label>
+<div class="flex items-center gap-4">
+<p class="text-sm text-gray-900">{{ user.email|default:"-" }}</p>
+<button onclick="openEmailModal()" class="text-purple-600 hover:text-purple-800 text-sm font-medium underline">
+Edit Email
+</button>
+</div>
+</div>
+</div>
+
+<!-- Password Section -->
+<div class="mt-8">
+<label class="block text-sm font-medium text-gray-700">Password</label>
+<div class="flex items-center gap-4">
+<p class="text-sm text-gray-900">********</p>
+<button onclick="openPasswordModal()" class="text-purple-600 hover:text-purple-800 text-sm font-medium underline">
+Change Password
+</button>
+</div>
+</div>
+
+<!-- Edit Profile Button -->
+<div class="mt-8">
+<a href="{% url 'profile_edit' %}" class="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-semibold rounded-md bg-pink-500 hover:bg-pink-600 text-white">
+Edit Profile
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Email Update Modal -->
+<div id="emailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+<div class="mt-3 text-center">
+<h3 class="text-lg font-medium text-gray-900 mb-4">Update Email Address</h3>
+
+<!-- Step 1: Enter New Email -->
+<div id="emailStep">
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 text-left mb-2">New Email Address</label>
+<input type="email" id="newEmail" placeholder="Enter new email address"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+</div>
+<div class="flex gap-3">
+<button onclick="checkEmailAndSendOTP()"
+class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md">
+Send OTP
+</button>
+<button onclick="closeEmailModal()"
+class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md">
+Cancel
+</button>
+</div>
+</div>
+
+<!-- Step 2: Verify OTP (Initially Hidden) -->
+<div id="otpStep" class="hidden">
+<div class="mb-4">
+<p class="text-sm text-gray-600 mb-3">We've sent an OTP to your new email address.</p>
+<label class="block text-sm font-medium text-gray-700 text-left mb-2">Enter OTP</label>
+<input type="text" id="emailOTP" placeholder="Enter 6-digit OTP" maxlength="6"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-lg tracking-widest">
+</div>
+<div class="flex gap-3 mb-3">
+<button onclick="verifyEmailOTP()"
+class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
+Verify & Update
+</button>
+<button onclick="closeEmailModal()"
+class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md">
+Cancel
+</button>
+</div>
+<div class="text-center">
+<button onclick="resendEmailOTP()" class="text-purple-600 hover:text-purple-800 text-sm font-medium underline">
+Resend OTP
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Password Change Modal -->
+<div id="passwordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+<div class="mt-3 text-center">
+<h3 class="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+
+<!-- Step 1: Verify Current Password -->
+<div id="verifyStep">
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 text-left mb-2">Current Password</label>
+<input type="password" id="currentPassword"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+</div>
+<div class="flex gap-3">
+<button onclick="verifyPassword()"
+class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md">
+Verify Password
+</button>
+<button onclick="closePasswordModal()"
+class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md">
+Cancel
+</button>
+</div>
+</div>
+
+<!-- Step 2: Enter New Password (Initially Hidden) -->
+<div id="changeStep" class="hidden">
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 text-left mb-2">New Password</label>
+<input type="password" id="newPassword"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+</div>
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 text-left mb-2">Confirm New Password</label>
+<input type="password" id="confirmPassword"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+</div>
+<div class="flex gap-3">
+<button onclick="changePassword()"
+class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
+Update Password
+</button>
+<button onclick="closePasswordModal()"
+class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-2 px-4 rounded-md">
+Cancel
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SweetAlert loader and modal logic -->
+<script>
+function setupSweetAlert() {
+if (typeof Swal !== 'undefined') {
+window.showAlert = function(type, title, message) {
+Swal.fire({
+icon: type,
+title: title,
+text: message,
+toast: true,
+position: 'top-end',
+showConfirmButton: false,
+timer: 3000
+});
+};
+} else {
+console.error('SweetAlert2 not loaded, using fallback');
+window.showAlert = function(type, title, message) {
+alert(title + ': ' + message);
+};
+}
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+// Retry loading Swal for up to 1 second
+let attempts = 0;
+const checkSwal = setInterval(() => {
+if (typeof Swal !== 'undefined' || attempts > 10) {
+clearInterval(checkSwal);
+setupSweetAlert();
+}
+attempts++;
+}, 100);
+});
+
+// Email Modal Functions
+function openEmailModal() {
+document.getElementById('emailModal').classList.remove('hidden');
+document.getElementById('emailStep').classList.remove('hidden');
+document.getElementById('otpStep').classList.add('hidden');
+document.getElementById('newEmail').value = '';
+document.getElementById('emailOTP').value = '';
+}
+
+function closeEmailModal() {
+document.getElementById('emailModal').classList.add('hidden');
+}
+
+function checkEmailAndSendOTP() {
+const newEmail = document.getElementById('newEmail').value.trim();
+if (!newEmail) {
+showAlert('warning', 'Warning', 'Please enter a new email address');
+return;
+}
+
+// Basic email validation
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+if (!emailRegex.test(newEmail)) {
+showAlert('error', 'Error', 'Please enter a valid email address');
+return;
+}
+
+fetch('{% url "check_email_availability" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}'
+},
+body: JSON.stringify({ email: newEmail })
+})
+.then(response => response.json())
+.then(data => {
+if (data.success) {
+showAlert('success', 'Success', data.message);
+document.getElementById('emailStep').classList.add('hidden');
+document.getElementById('otpStep').classList.remove('hidden');
+document.getElementById('emailOTP').focus();
+} else {
+showAlert('error', 'Error', data.message);
+}
+})
+.catch(error => {
+console.error('Error:', error);
+showAlert('error', 'Error', 'An error occurred. Please try again.');
+});
+}
+
+function verifyEmailOTP() {
+const otp = document.getElementById('emailOTP').value.trim();
+if (!otp) {
+showAlert('warning', 'Warning', 'Please enter the OTP');
+return;
+}
+
+if (otp.length !== 6) {
+showAlert('error', 'Error', 'OTP must be 6 digits');
+return;
+}
+
+fetch('{% url "verify_email_otp" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}'
+},
+body: JSON.stringify({ otp: otp })
+})
+.then(response => response.json())
+.then(data => {
+if (data.success) {
+showAlert('success', 'Success', data.message);
+closeEmailModal();
+// Reload page to show updated email
+setTimeout(() => {
+location.reload();
+}, 1500);
+} else {
+showAlert('error', 'Error', data.message);
+}
+})
+.catch(error => {
+console.error('Error:', error);
+showAlert('error', 'Error', 'An error occurred. Please try again.');
+});
+}
+
+function resendEmailOTP() {
+fetch('{% url "resend_email_otp" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}'
+}
+})
+.then(response => response.json())
+.then(data => {
+if (data.success) {
+showAlert('success', 'Success', data.message);
+} else {
+showAlert('error', 'Error', data.message);
+}
+})
+.catch(error => {
+console.error('Error:', error);
+showAlert('error', 'Error', 'An error occurred. Please try again.');
+});
+}
+
+// Password Modal Functions
+function openPasswordModal() {
+document.getElementById('passwordModal').classList.remove('hidden');
+document.getElementById('verifyStep').classList.remove('hidden');
+document.getElementById('changeStep').classList.add('hidden');
+document.getElementById('currentPassword').value = '';
+document.getElementById('newPassword').value = '';
+document.getElementById('confirmPassword').value = '';
+}
+
+function closePasswordModal() {
+document.getElementById('passwordModal').classList.add('hidden');
+}
+
+function verifyPassword() {
+const currentPassword = document.getElementById('currentPassword').value;
+if (!currentPassword) {
+showAlert('warning', 'Warning', 'Please enter your current password');
+return;
+}
+
+fetch('{% url "verify_password" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}'
+},
+body: JSON.stringify({ current_password: currentPassword })
+})
+.then(response => response.json())
+.then(data => {
+if (data.success) {
+showAlert('success', 'Success', data.message);
+document.getElementById('verifyStep').classList.add('hidden');
+document.getElementById('changeStep').classList.remove('hidden');
+} else {
+showAlert('error', 'Error', data.message);
+}
+})
+.catch(error => {
+console.error('Error:', error);
+showAlert('error', 'Error', 'An error occurred. Please try again.');
+});
+}
+
+function changePassword() {
+const currentPassword = document.getElementById('currentPassword').value;
+const newPassword = document.getElementById('newPassword').value;
+const confirmPassword = document.getElementById('confirmPassword').value;
+
+if (!newPassword || !confirmPassword) {
+showAlert('warning', 'Warning', 'Please fill in all password fields');
+return;
+}
+
+if (newPassword !== confirmPassword) {
+showAlert('error', 'Error', 'New passwords do not match');
+return;
+}
+
+fetch('{% url "change_password" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}'
+},
+body: JSON.stringify({
+current_password: currentPassword,
+new_password: newPassword,
+confirm_password: confirmPassword
+})
+})
+.then(response => response.json())
+.then(data => {
+if (data.success) {
+showAlert('success', 'Success', data.message);
+closePasswordModal();
+} else {
+showAlert('error', 'Error', data.message);
+}
+})
+.catch(error => {
+console.error('Error:', error);
+showAlert('error', 'Error', 'An error occurred. Please try again.');
+});
+}
+
+// Close modals when clicking outside
+document.getElementById('passwordModal').addEventListener('click', function(e) {
+if (e.target === this) {
+closePasswordModal();
+}
+});
+
+document.getElementById('emailModal').addEventListener('click', function(e) {
+if (e.target === this) {
+closeEmailModal();
+}
+});
+
+// Allow only numbers for OTP input
+document.getElementById('emailOTP').addEventListener('input', function(e) {
+this.value = this.value.replace(/[^0-9]/g, '');
+});
+</script>
+{% endblock %}

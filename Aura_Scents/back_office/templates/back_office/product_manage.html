@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+{% extends "back_office/base.html" %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} Product - Perfume Store{% endblock %}
+
+{% block page_title %}{% if is_edit %}Edit{% else %}Add{% endif %} Product{% endblock %}
+
+{% block content %}
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Local Styling -->
+    <style>
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group select,
+        .form-group textarea {
+            max-width: 400px;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #f9f9f9;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+        
+        .form-group select {
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%204%205'%3E%3Cpath%20fill%3D'%23333'%20d%3D'M2%200L0%202h4L2%200zm0%205L0%203h4L2%205z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: #8a4baf;
+            outline: none;
+            background-color: #fff;
+        }
+
+        textarea {
+            max-width: 600px;
+            width: 100%;
+            height: 150px;
+            resize: none;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+
+        .form-label {
+            font-weight: bold;
+            color: #4a1c2d;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .variant-form {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .variant-form .form-field {
+            display: flex;
+            flex-direction: column;
+            min-width: 120px;
+        }
+
+        .variant-form .form-field label {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .variant-form .form-field input,
+        .variant-form .form-field select {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            max-width: none;
+            width: auto;
+            margin: 0;
+        }
+
+        .image-thumbnail {
+            max-width: 100px;
+            max-height: 100px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .image-wrapper {
+            position: relative;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .new-image-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #8a4baf;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background-color: #7b3d99;
+        }
+
+        .remove-variant-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            height: fit-content;
+            align-self: flex-end;
+            margin-top: 20px;
+        }
+
+        .remove-variant-btn:hover {
+            background-color: #cc0000;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #8a4baf;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Enhanced checkbox styling for Add Variant */
+        .variant-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .variant-checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #8a4baf;
+            cursor: pointer;
+        }
+
+        .variant-checkbox-container label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4a1c2d;
+            cursor: pointer;
+        }
+
+        .image-wrapper.marked-for-removal {
+            opacity: 0.5;
+            position: relative;
+        }
+
+        .image-wrapper.marked-for-removal::after {
+            content: "MARKED FOR DELETION";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-weight: bold;
+            font-size: 10px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px;
+            border-radius: 2px;
+        }
+
+        /* Validation styling */
+        .input-error {
+            border-color: #ff4444 !important;
+            background-color: #ffe6e6 !important;
+        }
+
+        .input-success {
+            border-color: #28a745 !important;
+            background-color: #e6ffe6 !important;
+        }
+    </style>
+
+    {% if error %}
+        <div class="error-message" style="color: red;">{{ error }}</div>
+    {% endif %}
+
+    <form class="form" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label class="form-label">Name:</label>
+            <input type="text" name="name" value="{{ product.name|default_if_none:'' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Category:</label>
+            <select name="category" required>
+                <option value="">Select Category</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if product and product.category.id == cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Description:</label>
+            <textarea name="description" required>{{ product.description|default_if_none:'' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Price:</label>
+            <input type="number" step="0.01" name="price" id="base-price" 
+                   value="{{ product.price|default_if_none:'' }}" 
+                   {% if variants and product %}readonly{% endif %} required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Stock:</label>
+            <input type="number" name="stock" id="base-stock" 
+                   value="{{ product.stock|default_if_none:'' }}" 
+                   {% if variants and product %}readonly{% endif %} required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Images (Minimum 3, Max size: 10MB each):</label>
+            <div class="image-container" id="image-container">
+                {% if is_edit and images %}
+                    {% for image in images %}
+                        <div class="image-wrapper" data-image-id="{{ image.id }}">
+                            <img src="{{ image.image.url }}" class="image-thumbnail">
+                            <button type="button" class="remove-image" onclick="toggleImageRemoval(this, {{ image.id }})">X</button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <input type="file" name="images" id="image-input" multiple accept="image/*">
+            <!-- Hidden input to track which images are removed -->
+            <input type="hidden" id="removed-images" name="removed_images" value="">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Status:</label>
+            <label class="switch">
+                <input type="checkbox" name="product-status" {% if not product.is_blocked or not is_edit %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="variant-checkbox-container">
+            <input type="checkbox" id="variant-toggle" name="use_variants" {% if variants %}checked{% endif %}> 
+            <label for="variant-toggle">Add Variant</label>
+        </div>
+
+        <!-- Variant Section -->
+        <div id="variant-section" style="display: {% if variants %}block{% else %}none{% endif %}; margin-top: 10px;">
+            <div id="variant-forms-container">
+                {% for variant in variants %}
+                <div class="variant-form">
+                    <input type="hidden" name="variant_id[]" value="{{ variant.id }}">
+                    
+                    <div class="form-field">
+                        <label class="form-label">Volume:</label>
+                        <input type="number" step="0.01" name="variant_volume[]" class="variant-volume" placeholder="Volume" value="{{ variant.volume }}" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Unit:</label>
+                        <select name="variant_unit[]" required>
+                            <option value="ml" {% if variant.unit == 'ml' %}selected{% endif %}>Milliliter</option>
+                            <option value="g" {% if variant.unit == 'g' %}selected{% endif %}>Gram</option>
+                            <option value="oz" {% if variant.unit == 'oz' %}selected{% endif %}>Ounce</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Price:</label>
+                        <input type="number" step="0.01" name="variant_price[]" class="variant-price" placeholder="Price" value="{{ variant.price }}" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Stock:</label>
+                        <input type="number" name="variant_stock[]" placeholder="Stock" class="variant-stock" value="{{ variant.stock }}" required>
+                    </div>
+
+                    <button type="button" class="remove-variant-btn">Remove Variant</button>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" id="add-variant-btn" class="btn">Add More Variant</button>
+        </div>
+
+        <button type="submit" class="btn">Save Product</button>
+    </form>
+
+    <!-- JavaScript for variant toggle and dynamic behavior -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const variantToggle = document.getElementById('variant-toggle');
+        const variantSection = document.getElementById('variant-section');
+        const basePrice = document.getElementById('base-price');
+        const baseStock = document.getElementById('base-stock');
+        const addVariantBtn = document.getElementById('add-variant-btn');
+        const variantContainer = document.getElementById('variant-forms-container');
+        const imageInput = document.getElementById('image-input');
+        const imageContainer = document.getElementById('image-container');
+        const removedImagesInput = document.getElementById('removed-images');
+        const isEdit = {% if is_edit %}true{% else %}false{% endif %};
+        const hasVariants = {% if variants %}true{% else %}false{% endif %};
+
+        let selectedFiles = [];
+        let previews = [];
+        let removedImageIds = new Set();
+
+        // Make removedImageIds globally accessible
+        window.removedImageIds = removedImageIds;
+
+        if (isEdit && hasVariants) {
+            basePrice.readOnly = true;
+            baseStock.readOnly = true;
+        }
+
+        // Image validation function
+        function validateImageFile(file) {
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+
+            if (!validTypes.includes(file.type)) {
+                return {
+                    valid: false,
+                    message: `Invalid file type: ${file.name}. Only image files (JPEG, PNG, GIF, WebP, SVG) are allowed.`
+                };
+            }
+
+            if (file.size > maxSize) {
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                return {
+                    valid: false,
+                    message: `File too large: ${file.name} (${fileSizeMB}MB). Maximum size allowed is 10MB.`
+                };
+            }
+
+            return { valid: true };
+        }
+
+        function createFileListFromArray(files) {
+            const dataTransfer = new DataTransfer();
+            files.forEach(file => dataTransfer.items.add(file));
+            return dataTransfer.files;
+        }
+
+        imageInput.addEventListener('change', function(e) {
+            const newFiles = Array.from(e.target.files);
+            const validFiles = [];
+            let hasInvalidFiles = false;
+
+            // Validate each file
+            for (const file of newFiles) {
+                const validation = validateImageFile(file);
+                if (validation.valid) {
+                    validFiles.push(file);
+                } else {
+                    hasInvalidFiles = true;
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid File',
+                        text: validation.message,
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 4000
+                    });
+                }
+            }
+
+            if (hasInvalidFiles && validFiles.length === 0) {
+                // Clear the input if no valid files
+                imageInput.value = '';
+                return;
+            }
+
+            // Add valid files to selectedFiles array
+            selectedFiles = [...selectedFiles, ...validFiles];
+
+            validFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageWrapper = document.createElement('div');
+                    imageWrapper.className = 'image-wrapper';
+                    imageWrapper.dataset.fileIndex = selectedFiles.length - validFiles.length + index;
+
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'new-image-preview';
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'remove-image';
+                    removeBtn.textContent = 'X';
+                    removeBtn.onclick = function() {
+                        removeNewImage(imageWrapper);
+                    };
+
+                    imageWrapper.appendChild(img);
+                    imageWrapper.appendChild(removeBtn);
+                    imageContainer.appendChild(imageWrapper);
+                    previews.push(imageWrapper);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            imageInput.files = createFileListFromArray(selectedFiles);
+
+            // Show success message if valid files were added
+            if (validFiles.length > 0) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Images Added',
+                    text: `${validFiles.length} image(s) added successfully.`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
+        });
+
+        function removeNewImage(imageWrapper) {
+            const fileIndex = parseInt(imageWrapper.dataset.fileIndex);
+            selectedFiles.splice(fileIndex, 1);
+            imageInput.files = createFileListFromArray(selectedFiles);
+            imageWrapper.remove();
+            previews = previews.filter(p => p !== imageWrapper);
+            previews.forEach((preview, index) => {
+                preview.dataset.fileIndex = index;
+            });
+        }
+
+        // Variant validation functions
+        function validateVariantField(input, fieldName, min = 0) {
+            const value = parseFloat(input.value);
+            const isValid = !isNaN(value) && value >= min;
+            
+            if (isValid) {
+                input.classList.remove('input-error');
+                input.classList.add('input-success');
+            } else {
+                input.classList.remove('input-success');
+                input.classList.add('input-error');
+                
+                let message = '';
+                if (fieldName === 'Volume') {
+                    message = 'Volume must be greater than 0';
+                } else if (fieldName === 'Price') {
+                    message = 'Price must be 0 or greater';
+                } else if (fieldName === 'Stock') {
+                    message = 'Stock must be 0 or greater';
+                }
+                
+                Swal.fire({
+                    icon: 'warning',
+                    title: `Invalid ${fieldName}`,
+                    text: message,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+            
+            return isValid;
+        }
+
+        // Add event listeners for variant validation
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('variant-volume')) {
+                validateVariantField(e.target, 'Volume', 0.01);
+                updateTotalVariantStock();
+            } else if (e.target.classList.contains('variant-price')) {
+                validateVariantField(e.target, 'Price', 0);
+            } else if (e.target.classList.contains('variant-stock')) {
+                validateVariantField(e.target, 'Stock', 0);
+                updateTotalVariantStock();
+            }
+        });
+
+        // Add blur event listeners for more thorough validation
+        document.addEventListener('blur', function(e) {
+            if (e.target.classList.contains('variant-volume')) {
+                validateVariantField(e.target, 'Volume', 0.01);
+            } else if (e.target.classList.contains('variant-price')) {
+                validateVariantField(e.target, 'Price', 0);
+            } else if (e.target.classList.contains('variant-stock')) {
+                validateVariantField(e.target, 'Stock', 0);
+            }
+        }, true);
+
+        variantToggle.addEventListener('change', function () {
+            const isChecked = this.checked;
+            variantSection.style.display = isChecked ? 'block' : 'none';
+            basePrice.readOnly = isChecked;
+            baseStock.readOnly = isChecked;
+
+            if (isChecked) {
+                if (variantContainer.children.length === 0) {
+                    addVariantForm();
+                }
+            } else {
+                while (variantContainer.firstChild) {
+                    variantContainer.removeChild(variantContainer.firstChild);
+                }
+            }
+        });
+
+        function addVariantForm() {
+            const variantForm = document.createElement('div');
+            variantForm.className = 'variant-form';
+            variantForm.innerHTML = `
+                <input type="hidden" name="variant_id[]" value="">
+
+                <div class="form-field">
+                    <label class="form-label">Volume:</label>
+                    <input type="number" step="0.01" name="variant_volume[]" class="variant-volume" placeholder="Volume" required>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Unit:</label>
+                    <select name="variant_unit[]" required>
+                        <option value="ml">Milliliter</option>
+                        <option value="g">Gram</option>
+                        <option value="oz">Ounce</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Price:</label>
+                    <input type="number" step="0.01" name="variant_price[]" class="variant-price" placeholder="Price" required>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-label">Stock:</label>
+                    <input type="number" name="variant_stock[]" placeholder="Stock" class="variant-stock" required>
+                </div>
+
+                <button type="button" class="remove-variant-btn">Remove Variant</button>
+            `;
+            variantContainer.appendChild(variantForm);
+        }
+
+        addVariantBtn.addEventListener('click', addVariantForm);
+
+        variantContainer.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-variant-btn')) {
+                e.target.parentElement.remove();
+                updateTotalVariantStock();
+
+                if (variantContainer.children.length === 0) {
+                    variantToggle.checked = false;
+                    variantSection.style.display = 'none';
+                    basePrice.readOnly = false;
+                    baseStock.readOnly = false;
+                }
+            }
+        });
+
+        function updateTotalVariantStock() {
+            const stocks = document.querySelectorAll('.variant-stock');
+            let total = 0;
+            stocks.forEach(input => {
+                const val = parseInt(input.value);
+                if (!isNaN(val)) total += val;
+            });
+            baseStock.value = total;
+        }
+
+        basePrice.addEventListener("input", () => {
+            if (parseFloat(basePrice.value) < 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    toast: true,
+                    title: 'Price must be zero or more.',
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        });
+
+        baseStock.addEventListener("input", () => {
+            if (parseInt(baseStock.value) < 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    toast: true,
+                    title: 'Stock must be zero or more.',
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        });
+
+        document.querySelector("form").addEventListener("submit", function (e) {
+            let isValid = true;
+
+            // Validate base price and stock
+            if (parseFloat(basePrice.value) < 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Price',
+                    text: 'Price must be zero or more.',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+
+            if (parseInt(baseStock.value) < 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Stock',
+                    text: 'Stock must be zero or more.',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+
+            // Validate variants if enabled
+            const variantsEnabled = variantToggle.checked;
+            if (variantsEnabled) {
+                const variantForms = document.querySelectorAll('.variant-form');
+                if (variantForms.length === 0) {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No Variants Added',
+                        text: 'Please add at least one variant or disable the variant option.',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    return;
+                }
+
+                // Validate each variant
+                variantForms.forEach((form, index) => {
+                    const volumeInput = form.querySelector('.variant-volume');
+                    const priceInput = form.querySelector('.variant-price');
+                    const stockInput = form.querySelector('.variant-stock');
+
+                    if (!validateVariantField(volumeInput, 'Volume', 0.01) ||
+                        !validateVariantField(priceInput, 'Price', 0) ||
+                        !validateVariantField(stockInput, 'Stock', 0)) {
+                        isValid = false;
+                    }
+                });
+
+                if (!isValid) {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Variant Data',
+                        text: 'Please correct the highlighted variant fields.',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    return;
+                }
+            }
+
+            // Validate images
+            const existingImages = document.querySelectorAll('.image-wrapper[data-image-id]');
+            const remainingExistingImages = Array.from(existingImages).filter(wrapper =>
+                !removedImageIds.has(parseInt(wrapper.dataset.imageId))
+            ).length;
+            const newImages = selectedFiles.length;
+            const totalImages = remainingExistingImages + newImages;
+
+            if (totalImages < 3) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Upload at least 3 images',
+                    text: `You need ${3 - totalImages} more image(s).`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+
+            // Update the hidden input with removed image IDs before form submission
+            if (isEdit && removedImagesInput) {
+                removedImagesInput.value = Array.from(removedImageIds).join(',');
+            }
+        });
+
+        // Function to toggle image removal (globally accessible)
+        window.toggleImageRemoval = function(button, imageId) {
+            const imageWrapper = button.parentElement;
+            
+            if (removedImageIds.has(imageId)) {
+                // Remove from removal set
+                removedImageIds.delete(imageId);
+                imageWrapper.classList.remove('marked-for-removal');
+            } else {
+                // Add to removal set
+                removedImageIds.add(imageId);
+                imageWrapper.classList.add('marked-for-removal');
+            }
+            
+            // Update the hidden input immediately
+            if (removedImagesInput) {
+                removedImagesInput.value = Array.from(removedImageIds).join(',');
+            }
+        };
+    });
+</script>
+
+{% endblock %}

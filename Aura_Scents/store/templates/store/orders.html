@@ -1,0 +1,416 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block title %}My Orders | Aura Scents{% endblock %}
+
+{% block extra_head %}
+<!-- SweetAlert2 via official jsDelivr CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{% endblock %}
+
+{% block content %}
+<section class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+<div class="container mx-auto flex gap-12">
+
+{% include 'store/user_sidebar.html' %}
+
+ <!-- Orders Content -->
+      <div class="w-3/4 bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-3xl font-playfair font-bold text-purple-800 text-center mb-8">My Orders</h2>
+
+        <!-- Search Bar -->
+        <div class="mb-8">
+          <form method="GET" class="flex gap-4">
+            <div class="flex-1 relative">
+              <input 
+                type="text" 
+                name="search" 
+                value="{{ search_query }}"
+                placeholder="Search by Order ID or Status..." 
+                class="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+              <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <button 
+              type="submit" 
+              class="bg-purple-800 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+            >
+              Search
+            </button>
+            {% if search_query %}
+            <a 
+              href="{% url 'orders' %}" 
+              class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+            >
+              Clear
+            </a>
+            {% endif %}
+          </form>
+        </div>
+
+        <!-- Orders Container -->
+        <div class="space-y-8">
+          {% if orders %}
+            {% for order in orders %}
+            <div class="border border-gray-200 rounded-lg p-6 shadow-md bg-white order-card" data-order-id="{{ order.order_id }}">
+              <!-- Order Header -->
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <p class="text-lg font-semibold text-purple-800">Order {{ order.order_id }}</p>
+                  <p class="text-sm text-gray-600">Order Date: {{ order.created_at|date:"d/m/Y H:i" }}</p>
+                </div>
+                <p class="text-lg font-bold text-purple-800">₹{{ order.total_amount }}</p>
+              </div>
+
+              <!-- Order Details Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
+                <div>
+                  <span class="font-medium">Delivery Status:</span> 
+                  <span class="status-text {% if order.status == 'Delivered' %}text-green-600{% elif order.status == 'Cancelled' %}text-red-600{% elif order.status == 'Return Requested' or order.status == 'Returned' %}text-orange-600{% else %}text-purple-700{% endif %}">
+                    {{ order.status }}
+                  </span>
+                </div>
+                <div>
+                  <span class="font-medium">Payment Status:</span> 
+                  {% if order.is_paid %}
+                    <span class="text-green-600">Paid</span>
+                  {% else %}
+                    <span class="text-orange-600">{{ order.payment_method }}</span>
+                  {% endif %}
+                </div>
+                <div><span class="font-medium">Items:</span> {{ order.items.count }}</div>
+                <div><span class="font-medium">Total Amount:</span> ₹{{ order.total_amount }}</div>
+              </div>
+
+              <!-- Order Actions -->
+              <div class="flex justify-between items-center mt-6">
+                <div class="flex gap-3">
+                  <!-- Cancel Order Button -->
+                  {% if order.status not in 'Delivered,Cancelled,Return Requested,Returned' %}
+                  <button 
+                    onclick="return showCancelModal('{{ order.order_id }}')"
+                    class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors duration-200"
+                  >
+                    <i class="fas fa-times mr-1"></i> Cancel Order
+                  </button>
+                  {% endif %}
+                  
+                  <!-- Return Order Button -->
+                  {% if order.status == 'Delivered' %}
+                  <button 
+                    onclick="return showReturnModal('{{ order.order_id }}')"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors duration-200"
+                  >
+                    <i class="fas fa-undo mr-1"></i> Return Order
+                  </button>
+                  {% endif %}
+                </div>
+                
+                <!-- View Details Button -->
+                <a 
+                  href="{% url 'order_detail' order.order_id %}" 
+                  class="bg-purple-800 hover:bg-purple-700 text-white py-2 px-4 rounded-md text-sm font-semibold transition-colors duration-200"
+                >
+                  <i class="fas fa-eye mr-1"></i> View Details
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <!-- No Orders Message -->
+            <div class="text-center py-16">
+              <i class="fas fa-shopping-bag text-6xl text-gray-300 mb-4"></i>
+              <h3 class="text-xl font-semibold text-gray-600 mb-2">
+                {% if search_query %}
+                  No orders found matching "{{ search_query }}"
+                {% else %}
+                  No orders found
+                {% endif %}
+              </h3>
+              <p class="text-gray-500 mb-6">
+                {% if search_query %}
+                  Try searching with different keywords or clear the search.
+                {% else %}
+                  Start shopping to see your orders here.
+                {% endif %}
+              </p>
+              <a href="{% url 'products_page' %}" class="bg-purple-800 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold">
+                Start Shopping
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Load scripts at the bottom of content (before extra_scripts) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Make functions globally available
+window.showCancelModal = function(orderId) {
+    console.log('Cancel button clicked for order:', orderId);
+    Swal.fire({
+        title: `Cancel Order ${orderId}?`,
+        text: "Please select a reason for cancellation:",
+        icon: 'warning',
+        input: 'select',
+        inputOptions: {
+            'Changed my mind': 'Changed my mind',
+            'Found better price elsewhere': 'Found better price elsewhere',
+            'Ordered by mistake': 'Ordered by mistake',
+            'other': 'Other (please specify)'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonText: 'Cancel Order',
+        cancelButtonText: 'Keep Order',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Please select a reason for cancellation';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let reason = result.value;
+
+            if (reason === 'other') {
+                // Show custom reason input
+                Swal.fire({
+                    title: 'Please specify your reason',
+                    input: 'textarea',
+                    inputPlaceholder: 'Enter your cancellation reason...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Cancel Order',
+                    cancelButtonText: 'Back',
+                    confirmButtonColor: '#dc2626',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Please provide a reason for cancellation';
+                        }
+                    }
+                }).then((customResult) => {
+                    if (customResult.isConfirmed) {
+                        processCancelOrder(orderId, customResult.value);
+                    }
+                });
+            } else {
+                processCancelOrder(orderId, reason);
+            }
+        }
+    });
+    return false; // Prevent default action
+};
+
+// Process Cancel Order - FIXED URL
+function processCancelOrder(orderId, reason) {
+    console.log('Processing cancellation for order:', orderId, 'Reason:', reason);
+    fetch(`/cancel/${orderId}/`, {  // FIXED: Removed /orders/ prefix
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: 'Order Cancelled!',
+                text: data.message,
+                icon: 'success',
+                confirmButtonColor: '#7c3aed'
+            }).then(() => {
+                // Update the order status in the UI
+                updateOrderStatus(orderId, data.new_status);
+                // Optional: reload the page to reflect changes
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                title: 'Error!',
+                text: data.message || 'Failed to cancel order',
+                icon: 'error',
+                confirmButtonColor: '#7c3aed'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error!',
+            text: 'An unexpected error occurred. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#7c3aed'
+        });
+    });
+}
+
+// Return Order Modal
+window.showReturnModal = function(orderId) {
+    console.log('Return button clicked for order:', orderId);
+    Swal.fire({
+        title: `Return Order ${orderId}`,
+        text: "Please select a reason for return:",
+        icon: 'question',
+        input: 'select',
+        inputOptions: {
+            'Product damaged/defective': 'Product damaged/defective',
+            'Wrong item received': 'Wrong item received',
+            'Not as described': 'Not as described',
+            'other': 'Other (please specify)'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonText: 'Request Return',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#6b7280',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Please select a reason for return';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let reason = result.value;
+
+            if (reason === 'other') {
+                // Show custom reason input
+                Swal.fire({
+                    title: 'Please specify your reason',
+                    input: 'textarea',
+                    inputPlaceholder: 'Enter your return reason...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Request Return',
+                    cancelButtonText: 'Back',
+                    confirmButtonColor: '#f59e0b',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Please provide a reason for return';
+                        }
+                    }
+                }).then((customResult) => {
+                    if (customResult.isConfirmed) {
+                        processReturnOrder(orderId, customResult.value);
+                    }
+                });
+            } else {
+                processReturnOrder(orderId, reason);
+            }
+        }
+    });
+    return false; // Prevent default action
+};
+
+// Process Return Order - FIXED URL
+function processReturnOrder(orderId, reason) {
+    console.log('Processing return for order:', orderId, 'Reason:', reason);
+    fetch(`/return/${orderId}/`, {  // FIXED: Removed /orders/ prefix
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: 'Return Requested!',
+                text: data.message,
+                icon: 'success',
+                confirmButtonColor: '#7c3aed'
+            }).then(() => {
+                // Update the order status in the UI
+                updateOrderStatus(orderId, data.new_status);
+                // Optional: reload the page to reflect changes
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                title: 'Error!',
+                text: data.message || 'Failed to process return',
+                icon: 'error',
+                confirmButtonColor: '#7c3aed'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error!',
+            text: 'An unexpected error occurred. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#7c3aed'
+        });
+    });
+}
+
+// Update Order Status in UI
+function updateOrderStatus(orderId, newStatus) {
+    console.log('Updating status for order:', orderId, 'New status:', newStatus);
+    const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+    if (orderCard) {
+        // Update status text
+        const statusElement = orderCard.querySelector('.status-text');
+        if (statusElement) {
+            statusElement.textContent = newStatus;
+
+            // Update status color classes
+            statusElement.className = 'status-text';
+            if (newStatus === 'Cancelled') {
+                statusElement.classList.add('text-red-600');
+            } else if (newStatus === 'Return Requested' || newStatus === 'Returned') {
+                statusElement.classList.add('text-orange-600');
+            } else if (newStatus === 'Delivered') {
+                statusElement.classList.add('text-green-600');
+            } else {
+                statusElement.classList.add('text-purple-700');
+            }
+        }
+
+        // Hide/show action buttons based on new status
+        const cancelButton = orderCard.querySelector('button[onclick*="showCancelModal"]');
+        const returnButton = orderCard.querySelector('button[onclick*="showReturnModal"]');
+
+        if (cancelButton) {
+            cancelButton.style.display = ['Cancelled', 'Delivered', 'Return Requested', 'Returned'].includes(newStatus) ? 'none' : 'block';
+        }
+        if (returnButton) {
+            returnButton.style.display = (newStatus === 'Delivered') ? 'block' : 'none';
+        }
+    }
+}
+
+// Get CSRF Token
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

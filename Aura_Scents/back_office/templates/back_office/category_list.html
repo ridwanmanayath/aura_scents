@@ -1,0 +1,103 @@
+{% extends 'back_office/base.html' %}
+{% load static %}
+
+{% block title %}Category Management{% endblock %}
+{% block page_title %}Category Management{% endblock %}
+
+{% block content %}
+<div class="actions">
+    <form method="get" class="search-form">
+        <input type="text" name="q" placeholder="Search categories..." class="search-input" value="{% if query %}{{ query }}{% endif %}">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <a href="{% url 'category_add' %}" class="btn btn-primary">Add New Category</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Products Count</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category in categories %}
+        <tr>
+            <td>{{ forloop.counter0|add:categories.start_index }}</td>
+            <td>{{ category.name }}</td>
+            <td>{{ category.product_set.count }}</td>
+            <td>
+                <label class="switch">
+                    <input type="checkbox" {% if not category.is_blocked %}checked{% endif %} disabled>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td>
+                <a href="{% url 'category_edit' category.id %}" class="btn btn-small btn-secondary">Edit</a>
+                <a href="#" 
+                   class="btn btn-small btn-danger delete-category" 
+                   data-id="{{ category.id }}" 
+                   data-url="{% url 'category_delete' category.id %}">
+                   Delete
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No categories found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if categories.has_previous %}
+        <a href="?{% if query %}q={{ query }}&{% endif %}page={{ categories.previous_page_number }}">&lt;</a>
+    {% endif %}
+
+    {% for num in categories.paginator.page_range %}
+        {% if categories.number == num %}
+            <span class="active">{{ num }}</span>
+        {% else %}
+            <a href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if categories.has_next %}
+        <a href="?{% if query %}q={{ query }}&{% endif %}page={{ categories.next_page_number }}">&gt;</a>
+    {% endif %}
+</div>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Delete Confirmation Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const deleteButtons = document.querySelectorAll('.delete-category');
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('data-url');
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you really want to delete this category?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = deleteUrl;
+                }
+            });
+        });
+    });
+});
+</script>
+
+{% endblock %}

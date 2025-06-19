@@ -1,0 +1,135 @@
+/* Custom styles for Aura Scents */
+  
+
+/* Font families */
+.font-playfair {
+    font-family: 'Playfair Display', serif;
+  }
+  
+  .font-poppins {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  /* Product card hover effects */
+  .product-card {
+    transition: transform 0.3s ease;
+  }
+  
+  .product-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  /* Custom button styles */
+  button, .bg-pink-500 {
+    transition: all 0.3s ease;
+  }
+  
+  button:hover, .bg-pink-500:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Custom input focus styles */
+  input:focus {
+    border-color: #6B46C1;
+    box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.2);
+  }
+  
+  /* Category card hover effect */
+  .category-card .border {
+    transition: all 0.3s ease;
+  }
+  
+  .category-card:hover .border {
+    border-width: 2px;
+    transform: scale(1.05);
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #6B46C1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5B21B6;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .container {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    
+    h2 {
+      font-size: 1.75rem;
+    }
+    
+    .category-card .border {
+      width: 100px;
+      height: 100px;
+    }
+  }
+  
+  /* Animation for hero section */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .hero-content {
+    animation: fadeIn 1s ease-out;
+  }
+
+/* Lens Zoom Styles */
+#zoomWrapper {
+  position: relative;
+}
+
+#zoomLens {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid #7C3AED;
+  border-radius: 50%;
+  position: absolute;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
+
+#zoomResult {
+  display: block;
+  width: 300px;
+  height: 300px;
+  position: absolute;
+  border: 1px solid #ccc;
+  background-repeat: no-repeat;
+  background-size: 800px 800px; /* This will be dynamically updated */
+  pointer-events: none;
+  z-index: 999; /* Very high to sit above content */
+  top: 0;
+  left: 105%; /* Places it to the right of the image, adjust as needed */
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.main-image:hover {
+  transform: none;
+}
+

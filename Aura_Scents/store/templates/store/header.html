@@ -1,0 +1,65 @@
+<header class="bg-purple-800 text-white py-4">
+<div class="container mx-auto px-4 flex justify-between items-center">
+<div class="flex items-center">
+<h1 class="text-2xl font-playfair font-bold">Aura Scents</h1>
+</div>
+
+<nav class="hidden md:flex space-x-6">
+<a href="{% url 'home_page' %}" class="hover:text-purple-200">Home</a>
+<a href="{% url 'products_page' %}" class="hover:text-purple-200">Shop</a>
+<a href="#" class="hover:text-purple-200">About</a>
+<a href="#" class="hover:text-purple-200">Contact</a>
+</nav>
+
+<div class="flex items-center space-x-4 relative">
+<!-- Search Icon -->
+<a href="#" class="hover:text-purple-200">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+</svg>
+</a>
+
+<!-- Cart Icon with Counter -->
+<a href="{% url 'cart' %}" class="hover:text-purple-200 relative">
+<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+</svg>
+{% if request.user.is_authenticated %}
+{% with request.user.cart.items.count as item_count %}
+<span id="cart-counter" class="absolute -top-2 -right-2 bg-pink-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center {% if item_count == 0 %}hidden{% endif %}">
+{{ cart_quantity }}
+</span>
+{% endwith %}
+{% else %}
+<span id="cart-counter" class="absolute -top-2 -right-2 bg-pink-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+{% endif %}
+</a>
+
+{% if request.user.is_authenticated %}
+<div x-data="{ open: false }" class="relative">
+<!-- Avatar Button -->
+<button @click="open = !open" class="w-10 h-10 bg-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold focus:outline-none overflow-hidden">
+{% if request.user.profile_image %}
+<img src="{{ request.user.profile_image.url }}" alt="Profile" class="w-full h-full object-cover rounded-full">
+{% else %}
+{{ request.user.first_name|default:request.user.username|first|upper }}
+{% endif %}
+</button>
+
+<!-- Dropdown Menu -->
+<div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-64 bg-white text-black rounded-md shadow-lg z-50">
+<div class="px-4 py-3 border-b border-gray-200">
+<p class="font-semibold text-sm">{{ request.user.get_full_name|default:request.user.username }}</p>
+<p class="text-xs text-gray-600">{{ request.user.email }}</p>
+</div>
+<a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">My Profile</a>
+<a href="#" class="block px-4 py-2 hover:bg-gray-100">My Orders</a>
+<a href="{% url 'logout_page' %}" class="block px-4 py-2 hover:bg-gray-100">Logout</a>
+</div>
+</div>
+{% else %}
+<a href="{% url 'login_page' %}" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md text-sm font-semibold">Sign In</a>
+{% endif %}
+</div>
+</div>
+</header>

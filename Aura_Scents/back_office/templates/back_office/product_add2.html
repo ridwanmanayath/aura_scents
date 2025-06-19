@@ -1,0 +1,271 @@
+{% extends "back_office/base.html" %}
+
+{% block title %}Add Product - Perfume Store{% endblock %}
+
+{% block page_title %}Add New Product{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="error-message" style="color: red;">{{ error }}</div>
+{% endif %}
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Local Styling for Input Fixes -->
+<style>
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group select {
+      max-width: 400px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+      background-color: #f9f9f9;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D'http%3A//www.w3.org/2000/svg'%20viewBox%3D'0%200%204%205'%3E%3Cpath%20fill%3D'%23333'%20d%3D'M2%200L0%202h4L2%200zm0%205L0%203h4L2%205z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px;
+  }
+
+  .form-group select:focus {
+      border-color: #8a4baf;
+      outline: none;
+      background-color: #fff;
+  }
+
+  #description {
+      max-width: 600px;
+      width: 100%;
+      height: 150px;
+      resize: none;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+  }
+
+  .form-label {
+      font-weight: bold;
+      color: #4a1c2d;
+      margin-bottom: 4px;
+      display: block;
+  }
+</style>
+
+
+<form class="form" method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="form-group">
+        <label for="name" class="form-label">Product Name</label>
+        <input type="text" id="name" name="name" class="form-input" value="{{ name }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="description" class="form-label">Description</label>
+        <textarea id="description" name="description" class="form-input" rows="4" required>{{ description }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="price" class="form-label">Price</label>
+        <input type="number" id="price" name="price" class="form-input" step="0.01" value="{{ price }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="stock" class="form-label">Stock Quantity</label>
+        <input type="number" id="stock" name="stock" class="form-input" value="{{ stock }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="category" class="form-label">Category</label>
+        <select id="category" name="category" class="form-input" required>
+            <option value="">Select a category</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == category_id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="images" class="form-label">Product Images (min 3)</label>
+        <input type="file" id="images" name="images" class="form-input" accept="image/*" multiple required>
+        <div id="image-preview-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;"></div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Status</label>
+        <label class="switch">
+            <input type="checkbox" id="product-status" name="product-status" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add Product</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const priceInput = document.getElementById("price");
+    const stockInput = document.getElementById("stock");
+
+    // Validate price and stock before submitting the form
+    document.querySelector("form").addEventListener("submit", function (e) {
+        if (parseFloat(priceInput.value) < 0) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Price',
+                text: 'Price must be zero or more.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+
+        if (parseInt(stockInput.value) < 0) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Stock',
+                text: 'Stock must be zero or more.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+    });
+
+    priceInput.addEventListener("input", () => {
+        if (parseFloat(priceInput.value) < 0) {
+            Swal.fire({
+                icon: 'warning',
+                toast: true,
+                title: 'Price must be zero or more.',
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+    });
+
+    stockInput.addEventListener("input", () => {
+        if (parseInt(stockInput.value) < 0) {
+            Swal.fire({
+                icon: 'warning',
+                toast: true,
+                title: 'Stock must be zero or more.',
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
+    });
+
+    const imageInput = document.getElementById("images");
+    const previewContainer = document.getElementById("image-preview-container");
+    let imageFiles = [];
+
+    function updateImagePreviews() {
+        previewContainer.innerHTML = "";
+        imageFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const preview = document.createElement("div");
+                preview.style.position = "relative";
+                preview.style.width = "100px";
+                preview.style.height = "100px";
+
+                const img = document.createElement("img");
+                img.src = e.target.result;
+                img.style.width = "100%";
+                img.style.height = "100%";
+                img.style.objectFit = "cover";
+                img.style.border = "1px solid #ccc";
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.innerHTML = "🗑️";
+                deleteBtn.style.position = "absolute";
+                deleteBtn.style.top = "0";
+                deleteBtn.style.right = "0";
+                deleteBtn.style.background = "red";
+                deleteBtn.style.color = "white";
+                deleteBtn.style.border = "none";
+                deleteBtn.style.cursor = "pointer";
+                deleteBtn.onclick = () => {
+                    imageFiles.splice(index, 1);
+                    updateImagePreviews();
+                };
+
+                preview.appendChild(img);
+                preview.appendChild(deleteBtn);
+                previewContainer.appendChild(preview);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    imageInput.addEventListener("change", function (e) {
+        const newFiles = Array.from(e.target.files);
+        newFiles.forEach(file => {
+            if (!file.type.startsWith("image/")) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid file type',
+                    text: 'Only image files are allowed!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File too large',
+                    text: 'Each file must be under 10MB!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+            imageFiles.push(file);
+        });
+        updateImagePreviews();
+    });
+
+    document.querySelector("form").addEventListener("submit", function (e) {
+        if (imageFiles.length < 3) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Upload at least 3 images',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+
+        const dataTransfer = new DataTransfer();
+        imageFiles.forEach(file => dataTransfer.items.add(file));
+        imageInput.files = dataTransfer.files;
+    });
+});
+</script>
+
+{% endblock %}

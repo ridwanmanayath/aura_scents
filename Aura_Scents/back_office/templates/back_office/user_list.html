@@ -1,0 +1,128 @@
+{% extends 'back_office/base.html' %}
+
+{% block title %}User Management{% endblock %}
+
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Search form -->
+<div class="actions">
+    <form method="get">
+        <input type="text" name="q" placeholder="Search users..." class="search-input" value="{{ query|default:'' }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+</div>
+
+<!-- User table -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Sl No.</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Blocked</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ forloop.counter0|add:users.start_index }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+            <td>
+                <label class="switch">
+                    <input type="checkbox" {% if user.is_blocked %}checked{% endif %} disabled>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td>
+                <form method="post" action="{% url 'toggle_block_user' user.id %}" class="block-form">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="btn btn-small {% if user.is_blocked %}btn-success{% else %}btn-danger{% endif %}"
+                        data-username="{{ user.username }}"
+                        data-action="{% if user.is_blocked %}Unblock{% else %}Block{% endif %}">
+                        {% if user.is_blocked %}Unblock{% else %}Block{% endif %}
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No users found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if users.has_previous %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}page={{ users.previous_page_number }}">&lt;</a>
+    {% endif %}
+    {% for num in users.paginator.page_range %}
+        {% if users.number == num %}
+            <span class="active">{{ num }}</span>
+        {% else %}
+            <a href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if users.has_next %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}page={{ users.next_page_number }}">&gt;</a>
+    {% endif %}
+</div>
+
+<!-- SweetAlert Confirmation Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const forms = document.querySelectorAll('.block-form');
+
+        forms.forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const button = form.querySelector('button');
+                const action = button.getAttribute('data-action');
+                const username = button.getAttribute('data-username');
+
+                Swal.fire({
+                    title: `Are you sure?`,
+                    text: `You are about to ${action.toLowerCase()} the user "${username}".`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: `Yes, ${action}!`
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            });
+        });
+    });
+</script>
+
+<!-- SweetAlert for Django messages -->
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for message in messages %}
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: '{{ message|escapejs }}',
+            timer: 3000,
+            showConfirmButton: false
+        });
+        {% endfor %}
+    });
+</script>
+{% endif %}
+
+{% endblock %}

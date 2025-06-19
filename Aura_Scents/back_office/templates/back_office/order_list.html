@@ -1,0 +1,81 @@
+{% extends "back_office/base.html" %}
+
+{% block title %}Order Management{% endblock %}
+
+{% block page_title %}Order Management{% endblock %}
+
+{% block content %}
+<div class="actions">
+    <form method="get" class="search-form">
+        <input type="text" name="q" placeholder="Search orders..." class="search-input" value="{{ query|default:'' }}">
+        <select name="status">
+            <option value="">All Statuses</option>
+            <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Processing" {% if status_filter == 'Processing' %}selected{% endif %}>Processing</option>
+            <option value="Shipped" {% if status_filter == 'Shipped' %}selected{% endif %}>Shipped</option>
+            <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+        </select>
+        <select name="sort">
+            <option value="date_desc" {% if sort_by == 'date_desc' or not sort_by %}selected{% endif %}>Newest First</option>
+            <option value="date_asc" {% if sort_by == 'date_asc' %}selected{% endif %}>Oldest First</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Apply</button>
+    </form>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Order ID</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>#{{ order.order_id }}</td>
+            <td>{{ order.created_at|date:"Y-m-d" }}</td>
+            <td>
+                <div class="customer-info">
+                    <div class="customer-name">{{ order.user.get_full_name|default:order.user.username }}</div>
+                    <div class="customer-email">{{ order.user.email }}</div>
+                </div>
+            </td>
+            <td>₹{{ order.total|floatformat:2 }}</td>
+            <td>
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+            </td>
+            <td>
+                <a href="{% url 'order_details' order.id %}" class="btn btn-small btn-secondary">View Details</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">No orders found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if orders.has_previous %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ orders.previous_page_number }}">&lt;</a>
+    {% endif %}
+
+    {% for num in orders.paginator.page_range %}
+        {% if orders.number == num %}
+        <span class="active">{{ num }}</span>
+        {% else %}
+        <a href="?{% if query %}q={{ query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ num }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if orders.has_next %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ orders.next_page_number }}">&gt;</a>
+    {% endif %}
+</div>
+{% endblock %}

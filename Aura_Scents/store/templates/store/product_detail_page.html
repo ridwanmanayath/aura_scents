@@ -1,0 +1,337 @@
+{% extends 'store/base.html' %}
+{% load static %}
+{% block title %}{{ product.name }} | Aura Scents{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="bg-purple-50 py-4">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center text-sm">
+      <a href="{% url 'home_page' %}" class="text-gray-600 hover:text-purple-800">Home</a>
+      <svg class="h-4 w-4 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+      <a href="{% url 'products_page' %}" class="text-gray-600 hover:text-purple-800">{{ product.category.name }}</a>
+      <svg class="h-4 w-4 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+      <span class="text-purple-800">{{ product.name }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Product Section -->
+<section class="py-8">
+  <div class="container mx-auto px-4">
+    <div class="flex flex-col md:flex-row -mx-4">
+
+      <!-- Product Images -->
+      <div class="md:w-1/2 px-4 mb-6 md:mb-0 relative">
+        <div class="relative bg-purple-50 rounded-lg overflow-hidden h-80 md:h-96">
+          <img id="mainImage" src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain" />
+          <!-- Heart Icon inside image -->
+          <button id="wishlist-btn" data-product-id="{{ product.id }}" 
+            class="absolute top-4 right-4 bg-white rounded-full p-3 shadow-md hover:bg-gray-100 transition duration-300
+            {% if in_wishlist %}text-red-600{% else %}text-gray-600{% endif %}">
+            {% if in_wishlist %}
+              <i class="fa-solid fa-heart"></i>
+            {% else %}
+              <i class="fa-regular fa-heart"></i>
+            {% endif %}
+          </button>
+        </div>
+
+        <div class="flex space-x-2 mt-4">
+          {% for image in product.images.all %}
+            <div class="cursor-pointer border-2 {% if forloop.first %}border-purple-600{% else %}border-gray-200{% endif %} rounded-md overflow-hidden w-20 h-20" onclick="changeImage(this.children[0])">
+              <img src="{{ image.image.url }}" alt="Thumbnail {{ forloop.counter }}" class="w-full h-full object-cover" />
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Product Info -->
+      <div class="md:w-1/2 px-4">
+        <h1 class="text-3xl font-playfair font-bold text-purple-900 mb-2">{{ product.name }}</h1>
+        <p class="text-sm text-purple-600 mb-4">{{ product.category.name }}</p>
+        
+        <div class="mb-6">
+          <span id="product-price" class="text-2xl font-bold text-purple-800">
+            {% if default_variant %}
+              ${{ default_variant.price }}
+            {% else %}
+              ${{ product.price }}
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="mb-6">
+          <p class="text-sm">Availability:
+            <span id="stock-status" class="{% if current_stock > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+              {% if current_stock > 0 %}
+                In Stock
+              {% else %}
+                Out of Stock
+              {% endif %}
+            </span>
+          </p>
+        </div>
+
+        <!-- Variant Selector -->
+        {% if available_variants %}
+        <div class="mb-6">
+          <label for="variant-select" class="block text-sm font-medium text-gray-700 mb-2">Choose Variant:</label>
+          <select id="variant-select" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            {% for variant in available_variants %}
+              <option value="{{ variant.id }}" 
+                      data-price="{{ variant.price }}" 
+                      data-stock="{{ variant.stock }}"
+                      {% if variant == default_variant %}selected{% endif %}>
+                {{ variant.volume }}{{ variant.unit }} - ${{ variant.price }}
+                {% if variant.stock == 0 %} (Out of Stock){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <!-- Quantity Selector -->
+        <div class="flex items-center mb-6">
+          <span class="mr-4 text-gray-700">Quantity:</span>
+          <div class="flex items-center border border-gray-300 rounded-md">
+            <button class="px-3 py-2 text-gray-600 hover:bg-gray-100" onclick="updateQuantity('decrease')">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+              </svg>
+            </button>
+            <span id="quantity" class="px-4 py-2 border-l border-r border-gray-300">1</span>
+            <button class="px-3 py-2 text-gray-600 hover:bg-gray-100" onclick="updateQuantity('increase')">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Add to Cart -->
+        <div class="mb-8">
+          {% csrf_token %}
+          <input type="hidden" id="form-quantity" value="1">
+          <input type="hidden" id="selected-variant" value="{% if default_variant %}{{ default_variant.id }}{% endif %}">
+          <button type="button" id="add-to-cart-btn" data-product-id="{{ product.id }}" 
+                  class="bg-pink-500 text-white px-8 py-3 rounded-full font-medium hover:bg-pink-600 transition duration-300 w-full
+                  {% if current_stock == 0 %}opacity-50 cursor-not-allowed{% endif %}"
+                  {% if current_stock == 0 %}disabled{% endif %}>
+            {% if current_stock == 0 %}Out of Stock{% else %}Add to Cart{% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Product Description -->
+<section class="py-8 bg-purple-50">
+  <div class="container mx-auto px-4">
+    <div class="border-b border-gray-200 mb-6">
+      <div class="flex space-x-8">
+        <button class="pb-4 font-medium text-purple-800 border-b-2 border-purple-800 tab-button" data-tab="description">Description</button>
+      </div>
+    </div>
+    <div class="py-4">
+      <div id="description" class="tab-content">
+        <h3 class="text-xl font-playfair font-bold text-purple-900 mb-4">Product Description</h3>
+        <p class="text-gray-600 mb-4">{{ product.description|linebreaks }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Related Products -->
+{% if related_products %}
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <h2 class="text-2xl font-playfair font-bold text-purple-900 mb-8">You May Also Like</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      {% for related in related_products %}
+      <a href="{% url 'product_detail' related.id %}" class="block">
+        <div class="bg-purple-100 rounded-lg p-4 mb-3">
+          <img src="{{ related.images.first.image.url|default:'/static/store/placeholder.svg' }}" alt="{{ related.name }}" class="mx-auto h-40 object-contain" />
+        </div>
+        <h3 class="font-medium">{{ related.name }}</h3>
+        <p class="text-purple-800 font-bold">${{ related.price }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- jQuery & SweetAlert2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      document.cookie.split(';').forEach(function(cookie) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        }
+      });
+    }
+    return cookieValue;
+  }
+
+  function updateQuantity(action) {
+    const quantityEl = document.getElementById('quantity');
+    let quantity = parseInt(quantityEl.textContent) || 1;
+    quantity = action === 'increase' ? quantity + 1 : Math.max(1, quantity - 1);
+    quantityEl.textContent = quantity;
+    document.getElementById('form-quantity').value = quantity;
+  }
+
+  function changeImage(thumb) {
+    const mainImage = document.getElementById("mainImage");
+    const newSrc = thumb.getAttribute("src");
+    mainImage.src = newSrc;
+
+    const thumbnails = document.querySelectorAll(".thumbnail-container, .cursor-pointer");
+    thumbnails.forEach(el => el.classList.remove("border-purple-600"));
+    thumb.parentElement.classList.add("border-purple-600");
+  }
+
+  // Handle variant selection
+  function updateVariantInfo(variantOption) {
+    const price = variantOption.dataset.price;
+    const stock = parseInt(variantOption.dataset.stock) || 0;
+    
+    // Update price display
+    document.getElementById('product-price').textContent = `$${price}`;
+    
+    // Update stock status
+    const stockStatusEl = document.getElementById('stock-status');
+    const addToCartBtn = document.getElementById('add-to-cart-btn');
+    
+    if (stock > 0) {
+      stockStatusEl.textContent = 'In Stock';
+      stockStatusEl.className = 'text-green-600';
+      addToCartBtn.disabled = false;
+      addToCartBtn.textContent = 'Add to Cart';
+      addToCartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      stockStatusEl.textContent = 'Out of Stock';
+      stockStatusEl.className = 'text-red-600';
+      addToCartBtn.disabled = true;
+      addToCartBtn.textContent = 'Out of Stock';
+      addToCartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+    
+    // Update selected variant
+    document.getElementById('selected-variant').value = variantOption.value;
+  }
+
+  $(document).ready(function () {
+    // Handle variant selection change
+    $('#variant-select').on('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      updateVariantInfo(selectedOption);
+    });
+
+    $('#add-to-cart-btn').on('click', function () {
+      if ($(this).prop('disabled')) {
+        return; // Don't proceed if button is disabled
+      }
+
+      const productId = $(this).data('product-id');
+      const quantity = parseInt($('#quantity').text()) || 1;
+      const variantId = $('#selected-variant').val();
+
+      const data = { quantity: quantity };
+      if (variantId) {
+        data.variant_id = variantId;
+      }
+
+      $.ajax({
+        url: `/add-to-cart/${productId}/`,
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        data: data,
+        success: function (response) {
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: response.status === 'success' ? 'success' : 'error',
+            title: response.message,
+            showConfirmButton: false,
+            timer: 2000
+          });
+        },
+        error: function (xhr) {
+          let message = 'Something went wrong!';
+          if (xhr.status === 401) {
+            message = 'Login required';
+          } else if (xhr.responseJSON && xhr.responseJSON.message) {
+            message = xhr.responseJSON.message;
+          }
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: message,
+            showConfirmButton: false,
+            timer: 2000
+          });
+        }
+      });
+    });
+
+    // Wishlist toggle button
+    $('#wishlist-btn').on('click', function () {
+      const productId = $(this).data('product-id');
+      $.ajax({
+        url: `/toggle-wishlist/${productId}/`,
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        success: function (response) {
+          const icon = $('#wishlist-btn i');
+          if (response.status === 'added') {
+            icon.removeClass('fa-regular text-gray-600').addClass('fa-solid text-red-600');
+          } else if (response.status === 'removed') {
+            icon.removeClass('fa-solid text-red-600').addClass('fa-regular text-gray-600');
+          }
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: response.message,
+            showConfirmButton: false,
+            timer: 1500
+          });
+        },
+        error: function (xhr) {
+          let message = 'Login required';
+          if (xhr.status === 401) {
+            // Optional: redirect to login page
+            // window.location.href = `/login/?next=${window.location.pathname}`;
+          } else if (xhr.responseJSON && xhr.responseJSON.message) {
+            message = xhr.responseJSON.message;
+          }
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: message,
+            showConfirmButton: false,
+            timer: 1500
+          });
+        }
+      });
+    });
+  });
+</script>
+
+{% endblock %}

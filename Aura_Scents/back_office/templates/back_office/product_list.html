@@ -1,0 +1,102 @@
+{% extends "back_office/base.html" %}
+
+{% block title %}Product Management {% endblock %}
+
+{% block page_title %}Product Management{% endblock %}
+
+{% block content %}
+<div class="actions">
+    <form method="get" class="search-form">
+        <input type="text" name="q" placeholder="Search products..." class="search-input" value="{{ query }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <a href="{% url 'product_add' %}" class="btn btn-primary">Add New Product</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in page_obj %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ product.name }}</td>
+            <td>{{ product.category.name|default:"No Category" }}</td>
+            <td>{{ product.stock }}</td>
+            <td>
+                <label class="switch">
+                    <input type="checkbox" {% if not product.is_blocked %}checked{% endif %} disabled>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td>
+                <a href="{% url 'product_edit' product.id %}" class="btn btn-small btn-secondary">Edit</a>
+                <a href="{% url 'product_delete' product.id %}" class="btn btn-small btn-danger delete-btn" data-name="{{ product.name }}">Delete</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">No products available.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if page_obj.has_previous %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.previous_page_number }}">&lt;</a>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+            <span class="active">{{ num }}</span>
+        {% else %}
+            <a href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.next_page_number }}">&gt;</a>
+    {% endif %}
+</div>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Delete Confirmation Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            const productName = this.dataset.name;
+            const deleteUrl = this.getAttribute('href');
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `Do you really want to delete "${productName}"? This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = deleteUrl;
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

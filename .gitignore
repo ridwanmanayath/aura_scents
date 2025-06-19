@@ -1,0 +1,56 @@
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*$py.class
+
+# Virtual environment
+aura_venv/
+env/
+venv/
+ENV/
+
+
+# SQLite Database
+*.sqlite3
+
+# Django secret files
+*.log
+*.pot
+*.py[cod]
+*.so
+*.mo
+*.db
+.env
+*.env
+.env.*
+
+# Static and media files 
+staticfiles/
+media/
+
+# VS Code/IDE/editor config
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# MacOS
+.DS_Store
+
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# MyPy / Type Checking 
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Other
+*.bak
+*.swp
+*.tmp

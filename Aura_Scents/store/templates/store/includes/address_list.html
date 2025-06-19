@@ -1,0 +1,21 @@
+<div class="flex flex-wrap gap-4">
+    {% for address in addresses %}
+    <label class="block bg-white p-4 rounded-md shadow border border-gray-200 cursor-pointer h-40 w-80 relative hover:border-purple-300 transition-colors">
+        <div class="flex items-start space-x-4">
+            <input type="radio" name="selected_address" value="{{ address.id }}" class="mt-1 text-purple-600 focus:ring-purple-500" required {% if forloop.first %}checked{% endif %} />
+            <div class="flex-1">
+                <p class="font-medium text-gray-800">{{ address.first_name }} {{ address.last_name }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ address.address }}, {{ address.city }}, {{ address.state }} - {{ address.pincode }}</p>
+                <p class="text-sm text-gray-600 mt-1">Phone: {{ address.mobile_number }}</p>
+            </div>
+        </div>
+        <button type="button" onclick="openEditAddressModal('{{ address.id }}')" class="absolute bottom-2 right-4 text-blue-500 text-xs hover:underline focus:outline-none edit-address-btn">
+            Edit
+        </button>
+    </label>
+    {% empty %}
+    <div class="w-full p-4 bg-red-50 border border-red-200 rounded-md">
+        <p class="text-sm text-red-600">No addresses found. Please add one to continue.</p>
+    </div>
+    {% endfor %}
+</div>
