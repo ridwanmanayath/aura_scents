@@ -5,61 +5,63 @@
 
 {% block content %}
 <section class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-  <div class="container mx-auto flex gap-12">
-    {% include 'store/user_sidebar.html' %}
+<div class="container mx-auto flex gap-12">
+{% include 'store/user_sidebar.html' %}
 
-    <!-- Main Content -->
-    <div class="w-3/4 bg-white p-8 rounded-lg shadow-lg">
-      <h2 class="text-3xl font-playfair font-bold text-purple-800 text-center mb-6">My Wishlist</h2>
+<!-- Main Content -->
+<div class="w-3/4 bg-white p-8 rounded-lg shadow-lg">
+<h2 class="text-3xl font-playfair font-bold text-purple-800 text-center mb-6">My Wishlist</h2>
 
-      {% if wishlist_products %}
-        <div class="space-y-6" id="wishlist-items">
-          {% for product in wishlist_products %}
-            <div class="bg-gray-50 rounded-md shadow-sm p-4 flex items-center space-x-6" id="wishlist-item-{{ product.id }}">
-              
-              <!-- Product Image (with fallback) -->
-              <a href="{% url 'product_detail' product.id %}">
-                {% with product.images.first as image %}
-                  {% if image %}
-                    <img src="{{ image.image.url }}" alt="{{ product.name }}" class="w-32 h-24 object-cover rounded-md border cursor-pointer">
-                  {% else %}
-                    <img src="{% static 'images/no-image.png' %}" alt="No Image" class="w-32 h-24 object-cover rounded-md border cursor-pointer">
-                  {% endif %}
-                {% endwith %}
-              </a>
+{% if wishlist_data %}
+<div class="space-y-6" id="wishlist-items">
+{% for item in wishlist_data %}
+<div class="bg-gray-50 rounded-md shadow-sm p-4 flex items-center space-x-6" id="wishlist-item-{{ item.product.id }}-{{ item.variant.id|default:'0' }}">
 
-              <div class="flex-1">
-                <!-- Product Title (Clickable) -->
-                <a href="{% url 'product_detail' product.id %}" class="text-lg font-semibold text-gray-800 hover:text-purple-600">
-                  {{ product.name }}
-                </a>
-                <p class="text-pink-600 font-bold mt-1">₹{{ product.price }}</p>
-              </div>
+<!-- Product Image (with fallback) -->
+<a href="{% url 'product_detail' item.product.id %}">
+{% with item.product.images.first as image %}
+{% if image %}
+<img src="{{ image.image.url }}" alt="{{ item.display_name }}" class="w-32 h-24 object-cover rounded-md border cursor-pointer">
+{% else %}
+<img src="{% static 'images/no-image.png' %}" alt="No Image" class="w-32 h-24 object-cover rounded-md border cursor-pointer">
+{% endif %}
+{% endwith %}
+</a>
 
-              <div class="flex flex-col items-end space-y-2">
-                <!-- Add to Cart Button -->
-                <button 
-                  class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md text-sm font-semibold add-to-cart-btn" 
-                  data-product-id="{{ product.id }}">
-                  Add to Cart
-                </button>
+<div class="flex-1">
+<!-- Product Title (Clickable) -->
+<a href="{% url 'product_detail' item.product.id %}" class="text-lg font-semibold text-gray-800 hover:text-purple-600">
+{{ item.display_name }}
+</a>
+<p class="text-pink-600 font-bold mt-1">₹{{ item.price }}</p>
+</div>
 
-                <!-- Remove from Wishlist Button -->
-                <button 
-                  class="text-red-600 hover:text-red-800 text-lg delete-wishlist-btn" 
-                  data-product-id="{{ product.id }}" 
-                  title="Remove from Wishlist">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="text-center text-gray-500">Your wishlist is currently empty.</p>
-      {% endif %}
-    </div>
-  </div>
+<div class="flex flex-col items-end space-y-2">
+<!-- Add to Cart Button -->
+<button
+class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md text-sm font-semibold add-to-cart-btn"
+data-product-id="{{ item.product.id }}"
+data-variant-id="{{ item.variant.id|default:'0' }}">
+Add to Cart
+</button>
+
+<!-- Remove from Wishlist Button -->
+<button
+class="text-red-600 hover:text-red-800 text-lg delete-wishlist-btn"
+data-product-id="{{ item.product.id }}"
+data-variant-id="{{ item.variant.id|default:'0' }}"
+title="Remove from Wishlist">
+<i class="fas fa-trash-alt"></i>
+</button>
+</div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<p class="text-center text-gray-500">Your wishlist is currently empty.</p>
+{% endif %}
+</div>
+</div>
 </section>
 
 <!-- SweetAlert2 -->
@@ -67,87 +69,108 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const csrfToken = '{{ csrf_token }}';
+    const csrfToken = '{{ csrf_token }}';
 
-  // Add to Cart
-  document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-    button.addEventListener('click', function () {
-      const productId = this.dataset.productId;
+    // Add to Cart
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const productId = this.dataset.productId;
+            const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
 
-      fetch(`/add-to-cart/${productId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrfToken,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'quantity=1'
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          // Remove from wishlist DOM
-          const itemDiv = document.getElementById(`wishlist-item-${productId}`);
-          if (itemDiv) itemDiv.remove();
+            // Always use the same URL for add-to-cart
+            const url = `/add-to-cart/${productId}/`;
 
-          Swal.fire({
-            icon: 'success',
-            title: 'Added to Cart!',
-            text: 'The product has been added to your cart.',
-            confirmButtonColor: '#d33'
-          });
-        } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: data.message,
-            confirmButtonColor: '#d33'
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error adding to cart:', error);
-      });
+            // Prepare POST data
+            const postData = new URLSearchParams();
+            postData.append('quantity', '1');
+            if (variantId) {
+                postData.append('variant_id', variantId);
+            }
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: postData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Remove from wishlist DOM
+                    const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
+                    if (itemDiv) itemDiv.remove();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Added to Cart!',
+                        text: 'The product has been added to your cart.',
+                        confirmButtonColor: '#d33'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to cart:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while adding to cart.',
+                    confirmButtonColor: '#d33'
+                });
+            });
+        });
     });
-  });
 
-  // Delete from Wishlist
-  document.querySelectorAll('.delete-wishlist-btn').forEach(button => {
-    button.addEventListener('click', function () {
-      const productId = this.dataset.productId;
+    // Delete from Wishlist
+    document.querySelectorAll('.delete-wishlist-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const productId = this.dataset.productId;
+            const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
 
-      fetch(`/toggle-wishlist/${productId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrfToken,
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          const itemDiv = document.getElementById(`wishlist-item-${productId}`);
-          if (itemDiv) itemDiv.remove();
+            // Construct the URL based on whether a variant is selected
+            const url = variantId ? `/toggle-wishlist/${productId}/${variantId}/` : `/toggle-wishlist/${productId}/`;
 
-          Swal.fire({
-            icon: 'success',
-            title: 'Removed',
-            text: 'Item removed from wishlist.',
-            confirmButtonColor: '#d33'
-          });
-        } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: data.message || 'Could not remove item.',
-            confirmButtonColor: '#d33'
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error removing from wishlist:', error);
-      });
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
+                    if (itemDiv) itemDiv.remove();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Removed',
+                        text: 'Item removed from wishlist.',
+                        confirmButtonColor: '#d33'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Could not remove item.',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error removing from wishlist:', error);
+            });
+        });
     });
-  });
 });
 </script>
 

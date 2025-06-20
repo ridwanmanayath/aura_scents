@@ -39,13 +39,27 @@ class Address(models.Model):
 class WishlistItem(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='wishlisted_by')
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='wishlisted_by')
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'product')  # Prevents duplicates in wishlist
+        unique_together = ('user', 'product', 'variant')  # Prevents duplicates for product-variant combination
 
     def __str__(self):
+        if self.variant:
+            return f"{self.user.email} - {self.product.name} ({self.variant.volume}{self.variant.unit})"
         return f"{self.user.email} - {self.product.name}"
+
+    def get_price(self):
+        """Get the price of the item (variant price if available, otherwise product price)"""
+        return self.variant.price if self.variant else self.product.price
+
+    def get_display_name(self):
+        """Get display name including variant info if available"""
+        base_name = self.product.name
+        if self.variant:
+            return f"{base_name} ({self.variant.volume}{self.variant.unit})"
+        return base_name
 
 
 

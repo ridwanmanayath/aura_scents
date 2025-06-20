@@ -5,7 +5,9 @@ urlpatterns = [
     path('', views.home_page, name='home_page'),
     path('products', views.products_page, name='products_page'),
     path('product/<int:product_id>/', views.product_detail_view, name='product_detail'),
+    
     path('toggle-wishlist/<int:product_id>/', views.toggle_wishlist, name='toggle_wishlist'),
+    path('toggle-wishlist/<int:product_id>/<int:variant_id>/', views.toggle_wishlist, name='toggle_wishlist_with_variant'),
     path('wishlist/', views.wishlist, name='wish_list'),
 
     path('register/', views.user_register, name='register_page'),

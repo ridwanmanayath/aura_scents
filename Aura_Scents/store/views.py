@@ -38,6 +38,8 @@ from django.views.decorators.http import require_http_methods
 
 import os
 
+from django.utils import timezone
+
 #Download Invoice
 from django.shortcuts import get_object_or_404
 from .models import Order
@@ -232,10 +234,17 @@ def product_detail_view(request, product_id):
 @require_POST
 @csrf_exempt
 @login_required
-def toggle_wishlist(request, product_id):
+def toggle_wishlist(request, product_id, variant_id=None):
     product = get_object_or_404(Product, id=product_id)
+    variant = get_object_or_404(ProductVariant, id=variant_id) if variant_id else None
 
-    wishlist_item, created = WishlistItem.objects.get_or_create(user=request.user, product=product)
+    # Check if the wishlist item already exists for this product and variant combination
+    wishlist_item, created = WishlistItem.objects.get_or_create(
+        user=request.user,
+        product=product,
+        variant=variant,
+        defaults={'added_at': timezone.now()}
+    )
 
     if not created:
         # Item exists → remove it
@@ -247,21 +256,34 @@ def toggle_wishlist(request, product_id):
         message = 'Added to wishlist'
         status = 'success'
 
-    # Handle AJAX (JavaScript) request
+    # Handle AJAX request
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return JsonResponse({'status': status, 'message': message})
+        return JsonResponse({
+            'status': status,
+            'message': message,
+            'variant_id': variant_id
+        })
 
-    # Fallback for non-AJAX (form POST)
+    # Fallback for non-AJAX request
     return redirect('wish_list')
-
 
 @login_required
 def wishlist(request):
-    wishlist_items = WishlistItem.objects.filter(user=request.user).select_related('product')
-    products = [item.product for item in wishlist_items if not item.product.is_blocked and not item.product.is_deleted]
+    wishlist_items = WishlistItem.objects.filter(user=request.user).select_related('product', 'variant')
+    wishlist_data = [
+        {
+            'product': item.product,
+            'variant': item.variant,
+            'price': item.get_price(),
+            'display_name': item.get_display_name()
+        }
+        for item in wishlist_items
+        if not item.product.is_blocked and not item.product.is_deleted
+        and (not item.variant or (not item.variant.is_blocked and not item.variant.is_deleted))
+    ]
 
     context = {
-        'wishlist_products': products,
+        'wishlist_data': wishlist_data,
     }
     return render(request, 'store/wishlist.html', context)
 
