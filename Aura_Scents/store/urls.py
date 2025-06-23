@@ -54,6 +54,8 @@ urlpatterns = [
     path('order-failed/<str:message>/', views.order_failed, name='order_failed'),
 
     path('payment-init/<int:order_id>/', views.payment_handler_init, name='payment_handler_init'),
+
+    path('wallet/', views.wallet_view, name='wallet'),
     
     
 

@@ -115,6 +115,8 @@ class Order(models.Model):
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=50, default='Pending')
     order_id = models.CharField(max_length=20, unique=True, blank=True)
+    razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)  # Add for Razorpay
+    refund_processed = models.BooleanField(default=False)  # New field
 
     def __str__(self):
         return f"Order {self.order_id} by {self.user.email}"
@@ -171,6 +173,37 @@ class OrderItem(models.Model):
     
     def subtotal(self):
         return self.price * self.quantity   
+    
+
+class Wallet(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"{self.user.email}'s Wallet (₹{self.balance})"
+
+    class Meta:
+        verbose_name = "Wallet"
+        verbose_name_plural = "Wallets"
+
+class WalletTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('credit', 'Credit'),
+        ('debit', 'Debit'),
+    ]
+
+    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='transactions')
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.transaction_type.capitalize()} of ₹{self.amount} for {self.wallet.user.email}"
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 

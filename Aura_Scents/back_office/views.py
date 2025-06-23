@@ -22,7 +22,7 @@ from uuid import uuid4
 import os
 from django.core.exceptions import ValidationError
 
-from store.models import Order
+from store.models import *
 
 from django.db import transaction
 
@@ -475,18 +475,43 @@ def order_detail(request, order_id):
 
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+@staff_member_required(login_url='admin_login')
 def update_order_status(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    
     if request.method == 'POST':
         new_status = request.POST.get('status')
         old_status = order.status
-        
+
         if new_status != old_status:
             order.status = new_status
+            # Set is_paid to True for COD orders when status is Delivered
+            if new_status == 'Delivered' and order.payment_method == 'COD':
+                order.is_paid = True
             order.save()
-            messages.success(request, f'Order status updated to {new_status}')
-            
+
+            # Handle refunds for cancellations and returns
+            if new_status in ['Cancelled', 'Returned'] and not order.refund_processed:
+                with transaction.atomic():
+                    wallet, _ = Wallet.objects.get_or_create(user=order.user)
+                    refund_amount = order.total_amount if order.is_paid or new_status == 'Cancelled' else Decimal('0.00')
+                    if refund_amount > 0:
+                        WalletTransaction.objects.create(
+                            wallet=wallet,
+                            order=order,
+                            transaction_type='credit',
+                            amount=refund_amount,
+                            description=f"Refund for order {order.order_id} ({new_status})"
+                        )
+                        wallet.balance += refund_amount
+                        wallet.save()
+                        order.refund_processed = True
+                        order.save()
+                        logger.info(f"Refund of ₹{refund_amount} processed to wallet for order {order.order_id}")
+
             # Handle inventory for cancellations/returns
             if new_status in ['Cancelled', 'Returned']:
                 with transaction.atomic():
@@ -494,9 +519,12 @@ def update_order_status(request, order_id):
                         product = item.product
                         product.stock += item.quantity
                         product.save()
-            
+                        if item.variant:
+                            item.variant.stock += item.quantity
+                            item.variant.save()
+
+            messages.success(request, f'Order status updated to {new_status}')
         return redirect('order_details', order_id=order.id)
-    
     return redirect('order_list')
 
 
@@ -770,6 +798,37 @@ def sales_report(request):
     }
 
     return render(request, 'back_office/sales_report.html', context)
+
+@require_POST
+@staff_member_required(login_url='admin_login')
+def process_refund(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.refund_processed:
+        return JsonResponse({'success': False, 'message': 'Refund already processed'})
+    
+    if order.status not in ['Cancelled', 'Returned'] or (order.payment_method == 'COD' and not order.is_paid):
+        return JsonResponse({'success': False, 'message': 'Refund not applicable for this order'})
+    
+    try:
+        with transaction.atomic():
+            wallet, _ = Wallet.objects.get_or_create(user=order.user)
+            refund_amount = order.total_amount
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                order=order,
+                transaction_type='credit',
+                amount=refund_amount,
+                description=f"Manual refund for order {order.order_id}"
+            )
+            wallet.balance += refund_amount
+            wallet.save()
+            order.refund_processed = True
+            order.save()
+            logger.info(f"Manual refund of ₹{refund_amount} processed for order {order.order_id}")
+        return JsonResponse({'success': True, 'message': f'Refunded ₹{refund_amount} to wallet'})
+    except Exception as e:
+        logger.error(f"Error processing refund for order {order.order_id}: {str(e)}")
+        return JsonResponse({'success': False, 'message': f'Error processing refund: {str(e)}'})
 
 
 

@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.http import Http404
 
 from .forms import RegistrationForm,LoginForm
-from .models import OTP,Cart,CartItem,WishlistItem,Order, OrderItem
+from .models import *
 
 import random
 
@@ -49,6 +49,8 @@ from django.http import HttpResponse, HttpResponseForbidden
 from .utils import *
 from django.urls import reverse
 from razorpay.errors import SignatureVerificationError
+
+from django.db import transaction
 
 
 
@@ -1047,90 +1049,71 @@ def download_invoice(request, order_id):
     return HttpResponse("Error generating PDF", status=400)
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 @login_required
 @require_http_methods(["POST"])
 def cancel_order(request, order_id):
-    """Cancel an order and restock inventory"""
-    try:
-        order = get_object_or_404(Order, order_id=order_id, user=request.user)
-        
-        # Check if order can be cancelled   
-        if order.status in ['Delivered', 'Cancelled', 'Returned']:
-            return JsonResponse({
-                'success': False, 
-                'message': 'This order cannot be cancelled.'
-            })
-        
-        # Get cancellation reason from request
-        data = json.loads(request.body)
-        cancellation_reason = data.get('reason', 'No reason provided')
-        
-        # Update order status
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    if order.status in ['Delivered', 'Cancelled', 'Returned']:
+        return JsonResponse({'success': False, 'message': 'This order cannot be cancelled.'})
+
+    data = json.loads(request.body)
+    cancellation_reason = data.get('reason', 'No reason provided')
+
+    with transaction.atomic():
         order.status = 'Cancelled'
         order.save()
         
+        # Process refund if applicable
+        if order.is_paid or order.payment_method == 'COD':
+            wallet, _ = Wallet.objects.get_or_create(user=request.user)
+            refund_amount = order.total_amount
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                order=order,
+                transaction_type='credit',
+                amount=refund_amount,
+                description=f"Refund for cancelled order {order.order_id}"
+            )
+            wallet.balance += refund_amount
+            wallet.save()
+            order.refund_processed = True
+            order.save()
+            logger.info(f"Refund of ₹{refund_amount} processed to wallet for cancelled order {order.order_id}")
+        
         # Restock inventory
         restock_items(order)
-        
-        
-        return JsonResponse({
-            'success': True, 
-            'message': 'Order cancelled successfully.',
-            'new_status': 'Cancelled'
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False, 
-            'message': 'An error occurred while cancelling the order.'
-        })
-    
-    
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Order cancelled successfully.',
+        'new_status': 'Cancelled'
+    })
 
 @login_required
 @require_http_methods(["POST"])
 def return_order(request, order_id):
-    """Request return for a delivered order"""
-    try:
-        order = get_object_or_404(Order, order_id=order_id, user=request.user)
-        
-        # Check if order can be returned
-        if order.status != 'Delivered':
-            return JsonResponse({
-                'success': False, 
-                'message': 'Only delivered orders can be returned.'
-            })
-        
-        # Get return reason from request
-        data = json.loads(request.body)
-        return_reason = data.get('reason', '')
-        
-        if not return_reason:
-            return JsonResponse({
-                'success': False, 
-                'message': 'Return reason is required.'
-            })
-        
-        # Update order status to indicate return request
-        order.status = 'Return Requested'
-        order.save()
-        
-       
-        
-        return JsonResponse({
-            'success': True, 
-            'message': 'Return request submitted. Waiting for approval.',
-            'new_status': 'Return Requested'
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False, 
-            'message': 'An error occurred while processing the return request.'
-        })
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    if order.status != 'Delivered':
+        return JsonResponse({'success': False, 'message': 'Only delivered orders can be returned.'})
 
+    data = json.loads(request.body)
+    return_reason = data.get('reason', '')
+    if not return_reason:
+        return JsonResponse({'success': False, 'message': 'Return reason is required.'})
 
-    return render(request, 'orders/order_detail.html', context)
+    order.status = 'Return Requested'
+    order.save()
+    logger.info(f"Return requested for order {order.order_id} with reason: {return_reason}")
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Return request submitted. Waiting for approval.',
+        'new_status': 'Return Requested'
+    })
 
 def restock_items(order):
     """Helper function to restock inventory when order is cancelled/returned"""
@@ -1647,3 +1630,12 @@ def payment_handler_init(request, order_id):
     except Exception as e:
         messages.error(request, f'Payment initialization error: {str(e)}')
         return redirect('checkout')
+
+@login_required
+def wallet_view(request):
+    wallet, created = Wallet.objects.get_or_create(user=request.user)
+    transactions = wallet.transactions.all()
+    return render(request, 'store/wallet.html', {
+        'wallet': wallet,
+        'transactions': transactions
+    })
