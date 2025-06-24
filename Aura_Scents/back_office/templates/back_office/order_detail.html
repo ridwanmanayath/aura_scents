@@ -6,158 +6,197 @@
 
 {% block content %}
 <div class="content">
-    <!-- Order Summary -->
-    <div class="order-summary" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
-            <div>
-                <h2 style="margin-bottom: 0.5rem;">#{{ order.order_id }}</h2>
-                <p style="color: #6B7280;">Placed On: {{ order.created_at|date:"Y-m-d" }} at {{ order.created_at|time:"H:i" }}</p>
-            </div>
-            <div>
-                <h2 style="margin-bottom: 0.5rem;">Order Status</h2>
-                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
-            </div>
-        </div>
+<!-- Order Summary -->
+<div class="order-summary" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+<div>
+<h2 style="margin-bottom: 0.5rem;">#{{ order.order_id }}</h2>
+<p style="color: #6B7280;">Placed On: {{ order.created_at|date:"Y-m-d" }} at {{ order.created_at|time:"H:i" }}</p>
+</div>
+<div>
+<h2 style="margin-bottom: 0.5rem;">Order Status</h2>
+<span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+</div>
+</div>
 
-        <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #eee;">
-            <div>
-                <p style="font-weight: bold; margin-bottom: 0.25rem;">Payment Method</p>
-                <p>{{ order.payment_method }}{% if order.is_paid %} (Paid){% else %} (Not Paid){% endif %}</p>
-            </div>
-            <div>
-                <p style="font-weight: bold; margin-bottom: 0.25rem;">Total Amount</p>
-                <p>₹{{ order.total_amount|floatformat:2 }}</p>
-            </div>
-            <div>
-                <p style="font-weight: bold; margin-bottom: 0.25rem;">Order Date</p>
-                <p>{{ order.created_at|date:"F j, Y" }}</p>
-            </div>
-        </div>
-    </div>
+<div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #eee;">
+<div>
+<p style="font-weight: bold; margin-bottom: 0.25rem;">Payment Method</p>
+<p>{{ order.payment_method }}{% if order.is_paid %} (Paid){% else %} (Not Paid){% endif %}</p>
+</div>
+<div>
+<p style="font-weight: bold; margin-bottom: 0.25rem;">Total Amount</p>
+<p>₹{{ order.total_amount|floatformat:2 }}</p>
+</div>
+<div>
+<p style="font-weight: bold; margin-bottom: 0.25rem;">Order Date</p>
+<p>{{ order.created_at|date:"F j, Y" }}</p>
+</div>
+</div>
+</div>
 
-    <!-- Shipping Address -->
-    {% if order.address %}
-    <div class="shipping-address" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
-        <h2 style="margin-bottom: 1rem;">Shipping Address</h2>
-        <div>
-            <p style="font-weight: bold; margin-bottom: 0.25rem;">{{ order.address.first_name }} {{ order.address.last_name }}</p>
-            <p>{{ order.address.address }}</p>
-            <p>{{ order.address.city }}, {{ order.address.state }}</p>
-            <p>{{ order.address.pincode }}</p>
-            <p style="margin-top: 0.5rem;">Phone: {{ order.address.mobile_number }}</p>
-            {% if order.address.alternate_mobile_number %}
-            <p>Alternate Phone: {{ order.address.alternate_mobile_number }}</p>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
+<!-- Shipping Address -->
+{% if order.address %}
+<div class="shipping-address" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+<h2 style="margin-bottom: 1rem;">Shipping Address</h2>
+<div>
+<p style="font-weight: bold; margin-bottom: 0.25rem;">{{ order.address.first_name }} {{ order.address.last_name }}</p>
+<p>{{ order.address.address }}</p>
+<p>{{ order.address.city }}, {{ order.address.state }}</p>
+<p>{{ order.address.pincode }}</p>
+<p style="margin-top: 0.5rem;">Phone: {{ order.address.mobile_number }}</p>
+{% if order.address.alternate_mobile_number %}
+<p>Alternate Phone: {{ order.address.alternate_mobile_number }}</p>
+{% endif %}
+</div>
+</div>
+{% endif %}
 
-    <!-- Ordered Items -->
-    <div class="ordered-items" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
-        <h2 style="margin-bottom: 1rem;">Ordered Items</h2>
-        <table class="table" style="width: 100%;">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in order.items.all %}
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center;">
-                            <div style="width: 60px; height: 60px; background-color: #f3f4f6; margin-right: 1rem; display: flex; align-items: center; justify-content: center;">
-                                {% if item.product.images.first %}
-                                    <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                                {% else %}
-                                    <span>🛍️</span>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <p style="font-weight: bold;">{{ item.product.name }}
-                                    {% if item.product.variants.exists %}
-                                        - 
-                                        {% for variant in item.product.variants.all %}
-                                            {% if variant.price == item.price %}
-                                                {{ variant.volume }}{{ variant.unit }}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
-                                </p>
-                                <p style="color: #6B7280; font-size: 0.875rem;">{{ item.product.category }}</p>
-                            </div>
-                        </div>
-                    </td>
-                    <td>₹{{ item.price|floatformat:2 }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>₹{{ item.subtotal|floatformat:2 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="3" style="text-align: right; font-weight: bold;">Subtotal</td>
-                    <td>₹{{ order.subtotal|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="text-align: right; font-weight: bold;">Shipping</td>
-                    <td>₹{{ order.shipping_cost|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="text-align: right; font-weight: bold;">Tax (5%)</td>
-                    <td>₹{{ order.tax|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="text-align: right; font-weight: bold;">Discount</td>
-                    <td>-₹{{ order.discount|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="text-align: right; font-weight: bold;">Total</td>
-                    <td>₹{{ order.total_amount|floatformat:2 }}</td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
+<!-- Ordered Items -->
+<div class="ordered-items" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+<h2 style="margin-bottom: 1rem;">Ordered Items</h2>
+<table class="table" style="width: 100%;">
+<thead>
+<tr>
+<th>Product</th>
+<th>Price</th>
+<th>Quantity</th>
+<th>Subtotal</th>
+<th>Status</th>
+<th>Update Status</th>
+</tr>
+</thead>
+<tbody>
+{% for item in order.items.all %}
+<tr>
+<td>
+<div style="display: flex; align-items: center;">
+<div style="width: 60px; height: 60px; background-color: #f3f4f6; margin-right: 1rem; display: flex; align-items: center; justify-content: center;">
+{% if item.product.images.first %}
+<img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+{% else %}
+<span>🛍️</span>
+{% endif %}
+</div>
+<div>
+<p style="font-weight: bold;">{{ item.product.name }}
+{% if item.product.variants.exists %}
+-
+{% for variant in item.product.variants.all %}
+{% if variant.price == item.price %}
+{{ variant.volume }}{{ variant.unit }}
+{% endif %}
+{% endfor %}
+{% endif %}
+</p>
+<p style="color: #6B7280; font-size: 0.875rem;">{{ item.product.category }}</p>
+</div>
+</div>
+</td>
+<td>₹{{ item.price|floatformat:2 }}</td>
+<td>{{ item.quantity }}</td>
+<td>₹{{ item.subtotal|floatformat:2 }}</td>
+<td>
+<span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
+{% if item.status in 'Cancelled,Returned' and order.is_paid %}
+{% if order.refund_processed %}
+<p style="font-size: 0.875rem; color: #10B981;">Refunded ₹{{ item.subtotal|floatformat:2 }}</p>
+{% else %}
+<p style="font-size: 0.875rem; color: #F59E0B;">Refund Pending</p>
+{% endif %}
+{% endif %}
+</td>
+<td>
+<form method="post" action="{% url 'update_order_status' order.id %}">
+{% csrf_token %}
+<input type="hidden" name="item_id" value="{{ item.id }}">
+<select name="status" style="width: 100%; padding: 0.25rem; border: 1px solid #ddd; border-radius: 3px; margin-bottom: 0.5rem;">
+<option value="Pending" {% if item.status == 'Pending' %}selected{% endif %}>Pending</option>
+<option value="Processing" {% if item.status == 'Processing' %}selected{% endif %}>Processing</option>
+<option value="Shipped" {% if item.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+<option value="Delivered" {% if item.status == 'Delivered' %}selected{% endif %}>Delivered</option>
+<option value="Cancelled" {% if item.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+<option value="Returned" {% if item.status == 'Returned' %}selected{% endif %}}>Returned</option>
+</select>
+<button type="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 14px;">Update</button>
+</form>
+</td>
+</tr>
+</form>
+{% endfor %}
+</tbody>
+<tfoot>
+<tr>
+<td colspan="3" style="text-align: right; font-weight: bold;">Subtotal</td>
+<td>₹{ ₹ {{ order.subtotal|floatformat:2 }}</td>
+<td></td>
+<td></td></td>
+</tr>
+<tr>
+<td colspan="3" style="text-align: right; font-weight: bold;">Shipping</td>
+<td>₹{ ₹{{ order.shipping_cost|floatformat:2 }}</td>
+<td></td>
+<td></td></td>
+</tr>
+<tr>
+<td colspan="3" style="text-align: right; font-weight: bold;">Tax (5%):</td>
+<td>₹{ ₹{{ order.tax|floatformat:2}}}</td>
+<td></td>
+<td></td></td>
+</td>
+</tr>
+<tr>
+<td colspan="3" style="text-align: right; font-weight: bold;">Discount</td>
+<td>-₹{ ₹{{ order.discount|floatformat:2}}}</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="3" style="text-align: right; font-weight: bold;">Total</td>
+<td>₹{ ₹{{ order.total|floatformat:2}}}</td>
+<td></td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+</div>
 
-    <!-- Order Management -->
-    <div class="order-management" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
-        <h2 style="margin-bottom: 1rem;">Order Management</h2>
-        <form method="post" action="{% url 'update_order_status' order.id %}">
-            {% csrf_token %}
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="order-status" style="display: block; margin-bottom: 0.5rem;">Update Order Status</label>
-                <select id="order-status" name="status" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 3px; margin-bottom: 1rem;">
-                    <option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
-                    <option value="Processing" {% if order.status == 'Processing' %}selected{% endif %}>Processing</option>
-                    <option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
-                    <option value="Delivered" {% if order.status == 'Delivered' %}selected{% endif %}>Delivered</option>
-                    <option value="Cancelled" {% if order.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                    <option value="Returned" {% if order.status == 'Returned' %}selected{% endif %}>Returned</option>
-                </select>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Update Order Status</button>
-            </div>
-        </form>
+<!-- Order Management -->
+<div class="order-management" style="background-color: #fff; padding: 1.5rem; border-radius: 5px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+<h2 style="margin-bottom: 1rem;">Order Management</h2>
+<form method="post" action="{% url 'update_order_status' order.id %}">
+{% csrf_token %}
+<div class="form-group" style="margin-bottom: 1rem;">
+<label for="order-status" style="display: block; margin-bottom: 0.5rem;">Update Order Status</label>
+<select id="order-status" name="status" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 3px; margin-bottom: 1rem;">
+<option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
+<option value="Processing" {% if order.status == 'Processing' %}selected{% endif %}>Processing</option>
+<option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+<option value="Delivered" {% if order.status == 'Delivered' %}selected{% endif %}>Delivered</option>
+<option value="Cancelled" {% if order.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+<option value="Returned" {% if order.status == 'Returned' %}selected{% endif %}}>Returned</option>
+</select>
+<button type="submit" class="btn btn-primary" style="width: 100%;">Update Order Status</button>
+</div>
+</form>
 
-        {% if order.status == 'Returned' or order.status == 'Cancelled' %}
-        <div class="return-actions" style="margin-top: 1.5rem;">
-            <h3 style="margin-bottom: 1rem;">Refund Management</h3>
-            {% if order.is_paid %}
-                {% if order.refund_processed %}
-                <p>Refund of ₹{{ order.total_amount|floatformat:2 }} was processed successfully.</p>
-                {% else %}
-                <form method="post" action="{% url 'process_refund' order.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">Process Refund</button>
-                </form>
-                {% endif %}
-            {% else %}
-            <p>No refund needed (order was not paid).</p>
-            {% endif %}
-        </div>
-        {% endif %}
-    </div>
+{% if order.status == 'Returned' or order.status == 'Cancelled' %}
+<div class="return-actions" style="margin-top: 1.5rem;">
+<h3 style="margin-bottom: 1rem;">Refund Management</h3>
+{% if order.is_paid %}
+{% if  order.refund_processed %}
+<p>Refund of ₹{{ order.total_amount|floatformat:2 }} was processed successfully.</p>
+{% else %}
+<form method="post" action="{% url 'process_refund' order.id %} }">
+{% csrf_token %}
+<button type="submit" class="btn btn-primary">Process Refund</button>
+</form>
+{% endif %}
+{% else %}
+<p>No refund needed (order was not paid).</p>
+{% endif %}
+</div>
+{% endif %}
+</div>
 </div>
 {% endblock %}

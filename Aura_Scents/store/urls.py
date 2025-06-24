@@ -45,6 +45,9 @@ urlpatterns = [
     path('cancel/<str:order_id>/', views.cancel_order, name='cancel_order'),
     path('return/<str:order_id>/', views.return_order, name='return_order'),
 
+    path('orders/cancel-item/<str:order_id>/<int:item_id>/', views.cancel_order_item, name='cancel_order_item'),
+    path('orders/return-item/<str:order_id>/<int:item_id>/', views.return_order_item, name='return_order_item'),
+
      # Email update URLs
     path('check-email-availability/', views.check_email_availability, name='check_email_availability'),
     path('verify-email-otp/', views.verify_email_otp, name='verify_email_otp'),

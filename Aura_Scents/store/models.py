@@ -170,9 +170,25 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    
+    status = models.CharField(
+        max_length=50,
+        default='Pending',
+        choices=[
+            ('Pending', 'Pending'),
+            ('Processing', 'Processing'),
+            ('Shipped', 'Shipped'),
+            ('Delivered', 'Delivered'),
+            ('Cancelled', 'Cancelled'),
+            ('Return Requested', 'Return Requested'),
+            ('Returned', 'Returned')
+        ]
+    )
+
     def subtotal(self):
-        return self.price * self.quantity   
+        return self.price * self.quantity
+
+    def __str__(self):
+        return f"{self.product.name} (Qty: {self.quantity})"
     
 
 class Wallet(models.Model):
