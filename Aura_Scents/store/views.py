@@ -1066,10 +1066,11 @@ def cancel_order(request, order_id):
 
         with transaction.atomic():
             order.status = 'Cancelled'
+            order.remarks = cancellation_reason
             order.save()
 
-            # Process refund if applicable
-            if order.is_paid or order.payment_method == 'COD':
+            # Process refund if applicable (not COD)
+            if order.is_paid and order.payment_method != 'COD':
                 wallet, _ = Wallet.objects.get_or_create(user=request.user)
                 refund_amount = order.total_amount
                 WalletTransaction.objects.create(
@@ -1083,20 +1084,21 @@ def cancel_order(request, order_id):
                 wallet.save()
                 order.refund_processed = True
                 order.save()
-                logger.info(f"Refund of ₹{refund_amount} processed to wallet for cancelled order {order.order_id}")
 
-            # Restock inventory
-            restock_items(order)
+            # Update all items to cancelled and restock
+            for item in order.items.all():
+                item.status = 'Cancelled'
+                item.remarks = cancellation_reason
+                item.save()
+                item.product.stock += item.quantity
+                item.product.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Order cancelled successfully.',
-            'new_status': 'Cancelled'
-        })
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'Invalid request format.'}, status=400)
+            return JsonResponse({
+                'success': True,
+                'message': 'Order cancelled successfully.',
+                'new_status': 'Cancelled'
+            })
     except Exception as e:
-        logger.error(f"Error cancelling order {order_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
 
 @login_required
@@ -1112,9 +1114,9 @@ def return_order(request, order_id):
         return JsonResponse({'success': False, 'message': 'Return reason is required.'})
 
     order.status = 'Return Requested'
+    order.remarks = return_reason
     order.save()
-    logger.info(f"Return requested for order {order.order_id} with reason: {return_reason}")
-
+    
     return JsonResponse({
         'success': True,
         'message': 'Return request submitted. Waiting for approval.',
@@ -1127,7 +1129,7 @@ def cancel_order_item(request, order_id, item_id):
     try:
         order = get_object_or_404(Order, order_id=order_id, user=request.user)
         order_item = get_object_or_404(OrderItem, id=item_id, order=order)
-        
+
         if order_item.status in ['Delivered', 'Cancelled', 'Returned', 'Return Requested']:
             return JsonResponse({'success': False, 'message': 'This item cannot be cancelled.'})
 
@@ -1137,12 +1139,13 @@ def cancel_order_item(request, order_id, item_id):
         with transaction.atomic():
             # Update item status
             order_item.status = 'Cancelled'
+            order_item.remarks = cancellation_reason
             order_item.save()
 
-            # Process refund for the item
-            if order.is_paid or order.payment_method == 'COD':
+            # Process refund for the item (if not COD)
+            if order.is_paid and order.payment_method != 'COD':
                 wallet, _ = Wallet.objects.get_or_create(user=request.user)
-                refund_amount = order_item.subtotal()  # Refund only the item subtotal
+                refund_amount = order_item.subtotal()
                 WalletTransaction.objects.create(
                     wallet=wallet,
                     order=order,
@@ -1163,16 +1166,14 @@ def cancel_order_item(request, order_id, item_id):
                 order.refund_processed = True
                 order.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Item cancelled successfully.',
-            'new_status': 'Cancelled'
-        })
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'Invalid request format.'}, status=400)
+            return JsonResponse({
+                'success': True,
+                'message': 'Item cancelled successfully.',
+                'new_status': 'Cancelled'
+            })
     except Exception as e:
-        logger.error(f"Error cancelling item {item_id} in order {order_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
+
 
 @login_required
 @require_http_methods(["POST"])
@@ -1180,7 +1181,7 @@ def return_order_item(request, order_id, item_id):
     try:
         order = get_object_or_404(Order, order_id=order_id, user=request.user)
         order_item = get_object_or_404(OrderItem, id=item_id, order=order)
-        
+
         if order_item.status != 'Delivered':
             return JsonResponse({'success': False, 'message': 'Only delivered items can be returned.'})
 
@@ -1190,6 +1191,7 @@ def return_order_item(request, order_id, item_id):
             return JsonResponse({'success': False, 'message': 'Return reason is required.'})
 
         order_item.status = 'Return Requested'
+        order_item.remarks = return_reason
         order_item.save()
 
         # Update order status if any item is return requested
@@ -1197,17 +1199,12 @@ def return_order_item(request, order_id, item_id):
             order.status = 'Return Requested'
             order.save()
 
-        logger.info(f"Return requested for item {order_item.product.name} in order {order.order_id} with reason: {return_reason}")
-
         return JsonResponse({
             'success': True,
             'message': 'Return request submitted. Waiting for approval.',
             'new_status': 'Return Requested'
         })
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'Invalid request format.'}, status=400)
     except Exception as e:
-        logger.error(f"Error processing return for item {item_id} in order {order_id}: {str(e)}")
         return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
 
 def restock_items(order):

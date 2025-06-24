@@ -117,6 +117,7 @@ class Order(models.Model):
     order_id = models.CharField(max_length=20, unique=True, blank=True)
     razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)  # Add for Razorpay
     refund_processed = models.BooleanField(default=False)  # New field
+    remarks = models.TextField(blank=True, null=True, help_text="Cancellation or return reason")
 
     def __str__(self):
         return f"Order {self.order_id} by {self.user.email}"
@@ -183,6 +184,7 @@ class OrderItem(models.Model):
             ('Returned', 'Returned')
         ]
     )
+    remarks = models.TextField(blank=True, null=True, help_text="Cancellation or return reason")
 
     def subtotal(self):
         return self.price * self.quantity
