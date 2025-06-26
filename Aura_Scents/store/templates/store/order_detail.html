@@ -78,23 +78,23 @@ class="w-24 h-24 object-cover rounded-md" />
 
 <!-- Cancel/Return Buttons -->
 <div class="flex flex-col gap-2">
-  {% if order.status not in 'Delivered,Returned,Return Requested' and item.status not in 'Cancelled,Returned,Return Requested' %}
-  <button
-    onclick="return showCancelModal('{{ order.order_id }}', '{{ item.id }}')"
-    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
-  >
-    Cancel Item
-  </button>
-  {% endif %}
+{% if order.status not in 'Delivered,Returned,Return Requested' and item.status not in 'Cancelled,Returned,Return Requested' %}
+<button
+onclick="return showCancelModal('{{ order.order_id }}', '{{ item.id }}')"
+class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+>
+Cancel Item
+</button>
+{% endif %}
 
-  {% if order.status == 'Delivered' and item.status not in 'Returned,Return Requested' %}
-  <button
-    onclick="return showReturnModal('{{ order.order_id }}', '{{ item.id }}')"
-    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium"
-  >
-    Return Item
-  </button>
-  {% endif %}
+{% if order.status == 'Delivered' and item.status not in 'Returned,Return Requested,Cancelled' %}
+<button
+onclick="return showReturnModal('{{ order.order_id }}', '{{ item.id }}')"
+class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+>
+Return Item
+</button>
+{% endif %}
 </div>
 </div>
 {% endfor %}
@@ -379,21 +379,21 @@ return cookieValue;
 
 // Control button visibility
 document.addEventListener('DOMContentLoaded', function() {
-  const orderStatus = "{{ order.status }}";
-  const cancelButtons = document.querySelectorAll('button[onclick*="showCancelModal"]');
-  const returnButtons = document.querySelectorAll('button[onclick*="showReturnModal"]');
+const orderStatus = "{{ order.status }}";
+const cancelButtons = document.querySelectorAll('button[onclick*="showCancelModal"]');
+const returnButtons = document.querySelectorAll('button[onclick*="showReturnModal"]');
 
-  cancelButtons.forEach(button => {
-    if (['Delivered', 'Returned', 'Return Requested'].includes(orderStatus)) {
-      button.style.display = 'none';
-    }
-  });
+cancelButtons.forEach(button => {
+if (['Delivered', 'Returned', 'Return Requested'].includes(orderStatus)) {
+button.style.display = 'none';
+}
+});
 
-  returnButtons.forEach(button => {
-    if (orderStatus !== 'Delivered') {
-      button.style.display = 'none';
-    }
-  });
+returnButtons.forEach(button => {
+if (orderStatus !== 'Delivered') {
+button.style.display = 'none';
+}
+});
 });
 </script>
 {% endblock %}

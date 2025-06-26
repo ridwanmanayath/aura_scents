@@ -70,7 +70,7 @@
 <th>Quantity</th>
 <th>Subtotal</th>
 <th>Status</th>
-<th>Update Status</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody>
@@ -117,20 +117,16 @@
 {% endif %}
 </td>
 <td>
-  {% if item.status in 'Cancelled,Return Requested,Returned' %}
-  <form method="post" action="{% url 'update_order_status' order.id %}">
-    {% csrf_token %}
-    <input type="hidden" name="item_id" value="{{ item.id }}">
-    <select name="status" style="width: 100%; padding: 0.25rem; border: 1px solid #ddd; border-radius: 3px; margin-bottom: 0.5rem;">
-      <option value="Cancel Requested" {% if item.status == 'Cancel Requested' %}selected{% endif %}>Cancel Requested</option>
-      <option value="Return Requested" {% if item.status == 'Return Requested' %}selected{% endif %}>Return Requested</option>
-      <option value="Returned" {% if item.status == 'Returned' %}selected{% endif %}>Returned</option>
-    </select>
-    <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 14px;">Update</button>
-  </form>
-  {% else %}
-  <span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
-  {% endif %}
+{% if item.status == 'Return Requested' %}
+<form method="post" action="{% url 'update_order_status' order.id %}">
+{% csrf_token %}
+<input type="hidden" name="item_id" value="{{ item.id }}">
+<input type="hidden" name="status" value="Returned">
+<button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 14px;">Approve</button>
+</form>
+{% else %}
+<span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
+{% endif %}
 </td>
 </tr>
 {% endfor %}
