@@ -1145,7 +1145,15 @@ def cancel_order_item(request, order_id, item_id):
             # Process refund for the item (if not COD)
             if order.is_paid and order.payment_method != 'COD':
                 wallet, _ = Wallet.objects.get_or_create(user=request.user)
-                refund_amount = order_item.subtotal()
+                
+                # Calculate refund amount based on number of items
+                if order.items.count() == 1:
+                    # Only one item - refund full amount including shipping and tax
+                    refund_amount = order.total_amount
+                else:
+                    # Multiple items - refund only item amount
+                    refund_amount = order_item.subtotal()
+                
                 WalletTransaction.objects.create(
                     wallet=wallet,
                     order=order,
@@ -1166,11 +1174,11 @@ def cancel_order_item(request, order_id, item_id):
                 order.refund_processed = True
                 order.save()
 
-            return JsonResponse({
-                'success': True,
-                'message': 'Item cancelled successfully.',
-                'new_status': 'Cancelled'
-            })
+        return JsonResponse({
+            'success': True,
+            'message': 'Item cancelled successfully.',
+            'new_status': 'Cancelled'
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
 
