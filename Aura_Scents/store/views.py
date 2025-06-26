@@ -1123,97 +1123,105 @@ def return_order(request, order_id):
         'new_status': 'Return Requested'
     })
 
+@require_POST
 @login_required
-@require_http_methods(["POST"])
 def cancel_order_item(request, order_id, item_id):
     try:
-        order = get_object_or_404(Order, order_id=order_id, user=request.user)
-        order_item = get_object_or_404(OrderItem, id=item_id, order=order)
-
-        if order_item.status in ['Delivered', 'Cancelled', 'Returned', 'Return Requested']:
-            return JsonResponse({'success': False, 'message': 'This item cannot be cancelled.'})
-
         data = json.loads(request.body)
-        cancellation_reason = data.get('reason', 'No reason provided')
+        reason = data.get('reason', '').strip()
+        if not reason:
+            return JsonResponse({'success': False, 'message': 'Reason is required.'})
+
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+        item = get_object_or_404(OrderItem, id=item_id, order=order)
+
+        if item.status in ['Delivered', 'Cancelled', 'Returned', 'Return Requested']:
+            return JsonResponse({'success': False, 'message': 'Item cannot be cancelled.'})
 
         with transaction.atomic():
-            # Update item status
-            order_item.status = 'Cancelled'
-            order_item.remarks = cancellation_reason
-            order_item.save()
+            item.status = 'Cancelled'
+            item.remarks = reason
+            item.save()
 
-            # Process refund for the item (if not COD)
-            if order.is_paid and order.payment_method != 'COD':
-                wallet, _ = Wallet.objects.get_or_create(user=request.user)
-                
-                # Calculate refund amount based on number of items
-                if order.items.count() == 1:
-                    # Only one item - refund full amount including shipping and tax
-                    refund_amount = order.total_amount
-                else:
-                    # Multiple items - refund only item amount
-                    refund_amount = order_item.subtotal()
-                
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    order=order,
-                    transaction_type='credit',
-                    amount=refund_amount,
-                    description=f"Refund for cancelled item {order_item.product.name} in order {order.order_id}"
-                )
-                wallet.balance += refund_amount
-                wallet.save()
-
-            # Restock inventory for the item
-            order_item.product.stock += order_item.quantity
-            order_item.product.save()
-
-            # Update order status if all items are cancelled
-            if all(item.status == 'Cancelled' for item in order.items.all()):
+            # Update order status
+            all_items = order.items.all()
+            if all(item.status == 'Cancelled' for item in all_items):
                 order.status = 'Cancelled'
-                order.refund_processed = True
-                order.save()
+            order.save()
+
+            # Handle refund
+            refund_amount = Decimal('0.00')
+            if order.payment_method != 'COD' and not order.refund_processed:
+                if order.items.count() == 1:
+                    refund_amount = order.total  # Full refund for single-item orders
+                else:
+                    refund_amount = item.subtotal()  # Refund item subtotal only
+
+                if refund_amount > 0:
+                    wallet, _ = Wallet.objects.get_or_create(user=order.user)
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        order=order,
+                        transaction_type='credit',
+                        amount=refund_amount,
+                        description=f"Refund for cancelled item in order {order.order_id}"
+                    )
+                    wallet.balance += refund_amount
+                    wallet.save()
+                    if order.items.count() == 1:
+                        order.refund_processed = True
+                    order.save()
+
+            # Restore stock
+            product = item.product
+            product.stock += item.quantity
+            product.save()
 
         return JsonResponse({
             'success': True,
             'message': 'Item cancelled successfully.',
-            'new_status': 'Cancelled'
+            'new_status': item.status
         })
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid request format.'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
+        logger.error(f"Error cancelling item {item_id} in order {order_id}: {str(e)}")
+        return JsonResponse({'success': False, 'message': str(e)})
 
-
+@require_POST
 @login_required
-@require_http_methods(["POST"])
 def return_order_item(request, order_id, item_id):
     try:
-        order = get_object_or_404(Order, order_id=order_id, user=request.user)
-        order_item = get_object_or_404(OrderItem, id=item_id, order=order)
-
-        if order_item.status != 'Delivered':
-            return JsonResponse({'success': False, 'message': 'Only delivered items can be returned.'})
-
         data = json.loads(request.body)
-        return_reason = data.get('reason', '')
-        if not return_reason:
-            return JsonResponse({'success': False, 'message': 'Return reason is required.'})
+        reason = data.get('reason', '').strip()
+        if not reason:
+            return JsonResponse({'success': False, 'message': 'Reason is required.'})
 
-        order_item.status = 'Return Requested'
-        order_item.remarks = return_reason
-        order_item.save()
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+        item = get_object_or_404(OrderItem, id=item_id, order=order)
 
-        # Update order status if any item is return requested
-        if any(item.status == 'Return Requested' for item in order.items.all()):
+        if item.status != 'Delivered':
+            return JsonResponse({'success': False, 'message': 'Item must be delivered to request a return.'})
+
+        with transaction.atomic():
+            item.status = 'Return Requested'
+            item.remarks = reason
+            item.save()
+
+            # Update order status
             order.status = 'Return Requested'
             order.save()
 
         return JsonResponse({
             'success': True,
-            'message': 'Return request submitted. Waiting for approval.',
-            'new_status': 'Return Requested'
+            'message': 'Return requested successfully.',
+            'new_status': item.status
         })
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid request format.'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'An error occurred: {str(e)}'}, status=500)
+        logger.error(f"Error requesting return for item {item_id} in order {order_id}: {str(e)}")
+        return JsonResponse({'success': False, 'message': str(e)})
 
 def restock_items(order):
     """Helper function to restock inventory when order is cancelled/returned"""

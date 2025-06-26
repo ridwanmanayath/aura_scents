@@ -78,23 +78,23 @@ class="w-24 h-24 object-cover rounded-md" />
 
 <!-- Cancel/Return Buttons -->
 <div class="flex flex-col gap-2">
-{% if item.status not in 'Delivered,Cancelled,Returned,Return Requested' %}
-<button
-onclick="return showCancelModal('{{ order.order_id }}', '{{ item.id }}')"
-class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
->
-Cancel Item
-</button>
-{% endif %}
+  {% if order.status not in 'Delivered,Returned,Return Requested' and item.status not in 'Cancelled,Returned,Return Requested' %}
+  <button
+    onclick="return showCancelModal('{{ order.order_id }}', '{{ item.id }}')"
+    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+  >
+    Cancel Item
+  </button>
+  {% endif %}
 
-{% if item.status == 'Delivered' %}
-<button
-onclick="return showReturnModal('{{ order.order_id }}', '{{ item.id }}')"
-class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium"
->
-Return Item
-</button>
-{% endif %}
+  {% if order.status == 'Delivered' and item.status not in 'Returned,Return Requested' %}
+  <button
+    onclick="return showReturnModal('{{ order.order_id }}', '{{ item.id }}')"
+    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+  >
+    Return Item
+  </button>
+  {% endif %}
 </div>
 </div>
 {% endfor %}
@@ -156,236 +156,244 @@ Download Invoice
 <script>
 // Make functions globally available
 window.showCancelModal = function(orderId, itemId) {
-    console.log('Cancel button clicked for item:', itemId, 'in order:', orderId);
-    Swal.fire({
-        title: `Cancel Item in Order ${orderId}?`,
-        text: "Please select a reason for cancellation:",
-        icon: 'warning',
-        input: 'select',
-        inputOptions: {
-            'Changed my mind': 'Changed my mind',
-            'Found better price elsewhere': 'Found better price elsewhere',
-            'Ordered by mistake': 'Ordered by mistake',
-            'other': 'Other (please specify)'
-        },
-        inputPlaceholder: 'Select a reason',
-        showCancelButton: true,
-        confirmButtonText: 'Cancel Item',
-        cancelButtonText: 'Keep Item',
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        inputValidator: (value) => {
-            if (!value) {
-                return 'Please select a reason for cancellation';
-            }
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            let reason = result.value;
+console.log('Cancel button clicked for item:', itemId, 'in order:', orderId);
+Swal.fire({
+title: `Cancel Item in Order ${orderId}?`,
+text: "Please select a reason for cancellation:",
+icon: 'warning',
+input: 'select',
+inputOptions: {
+'Changed my mind': 'Changed my mind',
+'Found better price elsewhere': 'Found better price elsewhere',
+'Ordered by mistake': 'Ordered by mistake',
+'other': 'Other (please specify)'
+},
+inputPlaceholder: 'Select a reason',
+showCancelButton: true,
+confirmButtonText: 'Cancel Item',
+cancelButtonText: 'Keep Item',
+confirmButtonColor: '#dc2626',
+cancelButtonColor: '#6b7280',
+inputValidator: (value) => {
+if (!value) {
+return 'Please select a reason for cancellation';
+}
+}
+}).then((result) => {
+if (result.isConfirmed) {
+let reason = result.value;
 
-            if (reason === 'other') {
-                Swal.fire({
-                    title: 'Please specify your reason',
-                    input: 'textarea',
-                    inputPlaceholder: 'Enter your cancellation reason...',
-                    showCancelButton: true,
-                    confirmButtonText: 'Cancel Item',
-                    cancelButtonText: 'Back',
-                    confirmButtonColor: '#dc2626',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Please provide a reason for cancellation';
-                        }
-                    }
-                }).then((customResult) => {
-                    if (customResult.isConfirmed) {
-                        processCancelItem(orderId, itemId, customResult.value);
-                    }
-                });
-            } else {
-                processCancelItem(orderId, itemId, reason);
-            }
-        }
-    });
-    return false; // Prevent default action
+if (reason === 'other') {
+Swal.fire({
+title: 'Please specify your reason',
+input: 'textarea',
+inputPlaceholder: 'Enter your cancellation reason...',
+showCancelButton: true,
+confirmButtonText: 'Cancel Item',
+cancelButtonText: 'Back',
+confirmButtonColor: '#dc2626',
+inputValidator: (value) => {
+if (!value) {
+return 'Please provide a reason for cancellation';
+}
+}
+}).then((customResult) => {
+if (customResult.isConfirmed) {
+processCancelItem(orderId, itemId, customResult.value);
+}
+});
+} else {
+processCancelItem(orderId, itemId, reason);
+}
+}
+});
+return false; // Prevent default action
 };
 
 // Process Cancel Item
 function processCancelItem(orderId, itemId, reason) {
-    console.log('Processing cancellation for item:', itemId, 'in order:', orderId, 'Reason:', reason);
-    fetch(`/orders/cancel-item/${orderId}/${itemId}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({ reason: reason })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                title: 'Item Cancelled!',
-                text: data.message,
-                icon: 'success',
-                confirmButtonColor: '#7c3aed'
-            }).then(() => {
-                // Reload the page to reflect changes
-                window.location.reload();
-            });
-        } else {
-            Swal.fire({
-                title: 'Error!',
-                text: data.message || 'Failed to cancel item',
-                icon: 'error',
-                confirmButtonColor: '#7c3aed'
-            });
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        Swal.fire({
-            title: 'Error!',
-            text: 'An unexpected error occurred. Please try again.',
-            icon: 'error',
-            confirmButtonColor: '#7c3aed'
-        });
-    });
+console.log('Processing cancellation for item:', itemId, 'in order:', orderId, 'Reason:', reason);
+fetch(`/orders/cancel-item/${orderId}/${itemId}/`, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': getCSRFToken()
+},
+body: JSON.stringify({ reason: reason })
+})
+.then(response => {
+if (!response.ok) {
+throw new Error('Network response was not ok');
+}
+return response.json();
+})
+.then(data => {
+if (data.success) {
+Swal.fire({
+title: 'Item Cancelled!',
+text: data.message,
+icon: 'success',
+confirmButtonColor: '#7c3aed'
+}).then(() => {
+// Reload the page to reflect changes
+window.location.reload();
+});
+} else {
+Swal.fire({
+title: 'Error!',
+text: data.message || 'Failed to cancel item',
+icon: 'error',
+confirmButtonColor: '#7c3aed'
+});
+}
+})
+.catch(error => {
+console.error('Error:', error);
+Swal.fire({
+title: 'Error!',
+text: 'An unexpected error occurred. Please try again.',
+icon: 'error',
+confirmButtonColor: '#7c3aed'
+});
+});
 }
 
 window.showReturnModal = function(orderId, itemId) {
-    console.log('Return button clicked for item:', itemId, 'in order:', orderId);
-    Swal.fire({
-        title: `Return Item in Order ${orderId}`,
-        text: "Please select a reason for return:",
-        icon: 'question',
-        input: 'select',
-        inputOptions: {
-            'Product damaged/defective': 'Product damaged/defective',
-            'Wrong item received': 'Wrong item received',
-            'Not as described': 'Not as described',
-            'other': 'Other (please specify)'
-        },
-        inputPlaceholder: 'Select a reason',
-        showCancelButton: true,
-        confirmButtonText: 'Request Return',
-        cancelButtonText: 'Cancel',
-        confirmButtonColor: '#f59e0b',
-        cancelButtonColor: '#6b7280',
-        inputValidator: (value) => {
-            if (!value) {
-                return 'Please select a reason for return';
-            }
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            let reason = result.value;
+console.log('Return button clicked for item:', itemId, 'in order:', orderId);
+Swal.fire({
+title: `Return Item in Order ${orderId}`,
+text: "Please select a reason for return:",
+icon: 'question',
+input: 'select',
+inputOptions: {
+'Product damaged/defective': 'Product damaged/defective',
+'Wrong item received': 'Wrong item received',
+'Not as described': 'Not as described',
+'other': 'Other (please specify)'
+},
+inputPlaceholder: 'Select a reason',
+showCancelButton: true,
+confirmButtonText: 'Request Return',
+cancelButtonText: 'Cancel',
+confirmButtonColor: '#f59e0b',
+cancelButtonColor: '#6b7280',
+inputValidator: (value) => {
+if (!value) {
+return 'Please select a reason for return';
+}
+}
+}).then((result) => {
+if (result.isConfirmed) {
+let reason = result.value;
 
-            if (reason === 'other') {
-                Swal.fire({
-                    title: 'Please specify your reason',
-                    input: 'textarea',
-                    inputPlaceholder: 'Enter your return reason...',
-                    showCancelButton: true,
-                    confirmButtonText: 'Request Return',
-                    cancelButtonText: 'Back',
-                    confirmButtonColor: '#f59e0b',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Please provide a reason for return';
-                        }
-                    }
-                }).then((customResult) => {
-                    if (customResult.isConfirmed) {
-                        processReturnItem(orderId, itemId, customResult.value);
-                    }
-                });
-            } else {
-                processReturnItem(orderId, itemId, reason);
-            }
-        }
-    });
-    return false; // Prevent default action
+if (reason === 'other') {
+Swal.fire({
+title: 'Please specify your reason',
+input: 'textarea',
+inputPlaceholder: 'Enter your return reason...',
+showCancelButton: true,
+confirmButtonText: 'Request Return',
+cancelButtonText: 'Back',
+confirmButtonColor: '#f59e0b',
+inputValidator: (value) => {
+if (!value) {
+return 'Please provide a reason for return';
+}
+}
+}).then((customResult) => {
+if (customResult.isConfirmed) {
+processReturnItem(orderId, itemId, customResult.value);
+}
+});
+} else {
+processReturnItem(orderId, itemId, reason);
+}
+}
+});
+return false; // Prevent default action
 };
 
 // Process Return Item
 function processReturnItem(orderId, itemId, reason) {
-    console.log('Processing return for item:', itemId, 'in order:', orderId, 'Reason:', reason);
-    fetch(`/orders/return-item/${orderId}/${itemId}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({ reason: reason })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                title: 'Return Requested!',
-                text: data.message,
-                icon: 'success',
-                confirmButtonColor: '#7c3aed'
-            }).then(() => {
-                // Reload the page to reflect changes
-                window.location.reload();
-            });
-        } else {
-            Swal.fire({
-                title: 'Error!',
-                text: data.message || 'Failed to process return',
-                icon: 'error',
-                confirmButtonColor: '#7c3aed'
-            });
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        Swal.fire({
-            title: 'Error!',
-            text: 'An unexpected error occurred. Please try again.',
-            icon: 'error',
-            confirmButtonColor: '#7c3aed'
-        });
-    });
+console.log('Processing return for item:', itemId, 'in order:', orderId, 'Reason:', reason);
+fetch(`/orders/return-item/${orderId}/${itemId}/`, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': getCSRFToken()
+},
+body: JSON.stringify({ reason: reason })
+})
+.then(response => {
+if (!response.ok) {
+throw new Error('Network response was not ok');
+}
+return response.json();
+})
+.then(data => {
+if (data.success) {
+Swal.fire({
+title: 'Return Requested!',
+text: data.message,
+icon: 'success',
+confirmButtonColor: '#7c3aed'
+}).then(() => {
+// Reload the page to reflect changes
+window.location.reload();
+});
+} else {
+Swal.fire({
+title: 'Error!',
+text: data.message || 'Failed to process return',
+icon: 'error',
+confirmButtonColor: '#7c3aed'
+});
+}
+})
+.catch(error => {
+console.error('Error:', error);
+Swal.fire({
+title: 'Error!',
+text: 'An unexpected error occurred. Please try again.',
+icon: 'error',
+confirmButtonColor: '#7c3aed'
+});
+});
 }
 
 // Get CSRF Token
 function getCSRFToken() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === ('csrftoken=')) {
-                cookieValue = decodeURIComponent(cookie.substring(10));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+let cookieValue = null;
+if (document.cookie && document.cookie !== '') {
+const cookies = document.cookie.split(';');
+for (let i = 0; i < cookies.length; i++) {
+const cookie = cookies[i].trim();
+if (cookie.substring(0, 10) === ('csrftoken=')) {
+cookieValue = decodeURIComponent(cookie.substring(10));
+break;
+}
+}
+}
+return cookieValue;
 }
 
-// Hide cancel buttons when status is Return Requested
+// Control button visibility
 document.addEventListener('DOMContentLoaded', function() {
-    const orderStatus = "{{ order.status }}";
-    if (orderStatus === 'Return Requested') {
-        const cancelButtons = document.querySelectorAll('button[onclick*="showCancelModal"]');
-        cancelButtons.forEach(button => {
-            button.style.display = 'none';
-        });
+  const orderStatus = "{{ order.status }}";
+  const cancelButtons = document.querySelectorAll('button[onclick*="showCancelModal"]');
+  const returnButtons = document.querySelectorAll('button[onclick*="showReturnModal"]');
+
+  cancelButtons.forEach(button => {
+    if (['Delivered', 'Returned', 'Return Requested'].includes(orderStatus)) {
+      button.style.display = 'none';
     }
+  });
+
+  returnButtons.forEach(button => {
+    if (orderStatus !== 'Delivered') {
+      button.style.display = 'none';
+    }
+  });
 });
 </script>
 {% endblock %}

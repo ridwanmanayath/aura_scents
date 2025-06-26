@@ -485,41 +485,76 @@ def update_order_status(request, order_id):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         old_status = order.status
+        item_id = request.POST.get('item_id')  # Check if updating specific item
 
-        if new_status != old_status:
-            order.status = new_status
-            # Set is_paid to True for COD orders when status is Delivered
-            if new_status == 'Delivered' and order.payment_method == 'COD':
-                order.is_paid = True
-            order.save()
+        with transaction.atomic():
+            if item_id:  # Individual item status update
+                item = get_object_or_404(OrderItem, id=item_id, order=order)
+                if new_status in ['Cancel Requested', 'Return Requested', 'Returned']:
+                    item.status = new_status
+                    item.save()
+                    
+                    # Update order status based on item statuses
+                    all_items = order.items.all()
+                    if all(item.status == 'Cancelled' for item in all_items):
+                        order.status = 'Cancelled'
+                    elif any(item.status in ['Return Requested', 'Returned'] for item in all_items):
+                        order.status = 'Return Requested'
+                    order.save()
+            else:  # Order-level status update
+                if new_status != old_status:
+                    order.status = new_status
+                    if new_status == 'Delivered' and order.payment_method == 'COD':
+                        order.is_paid = True
+
+                    # Sync item statuses unless overridden
+                    for item in order.items.all():
+                        if item.status not in ['Cancelled', 'Return Requested', 'Returned']:
+                            item.status = new_status
+                            item.save()
+
+                    order.save()
 
             # Handle refunds for cancellations and returns
             if new_status in ['Cancelled', 'Returned'] and not order.refund_processed:
-                with transaction.atomic():
-                    wallet, _ = Wallet.objects.get_or_create(user=order.user)
-                    refund_amount = order.total_amount if order.is_paid or new_status == 'Cancelled' else Decimal('0.00')
-                    if refund_amount > 0:
-                        WalletTransaction.objects.create(
-                            wallet=wallet,
-                            order=order,
-                            transaction_type='credit',
-                            amount=refund_amount,
-                            description=f"Refund for order {order.order_id} ({new_status})"
+                refund_amount = Decimal('0.00')
+                if order.status == 'Cancelled' and order.payment_method != 'COD':
+                    if order.items.count() == 1:
+                        refund_amount = order.total  # Full refund for single-item orders
+                    else:
+                        # Sum subtotal of cancelled items for multi-item orders
+                        refund_amount = sum(
+                            item.subtotal()
+                            for item in order.items.filter(status='Cancelled')
                         )
-                        wallet.balance += refund_amount
-                        wallet.save()
-                        order.refund_processed = True
-                        order.save()
-                        logger.info(f"Refund of ₹{refund_amount} processed to wallet for order {order.order_id}")
+                elif order.status == 'Returned':
+                    # Refund item subtotal for returned items
+                    refund_amount = sum(
+                        item.subtotal()
+                        for item in order.items.filter(status='Returned')
+                    )
+
+                if refund_amount > 0:
+                    wallet, _ = Wallet.objects.get_or_create(user=order.user)
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        order=order,
+                        transaction_type='credit',
+                        amount=refund_amount,
+                        description=f"Refund for order {order.order_id} ({new_status})"
+                    )
+                    wallet.balance += float(refund_amount)
+                    wallet.save()
+                    order.refund_processed = True
+                    order.save()
+                    logger.info(f"Refund of ₹{refund_amount} processed to wallet for order {order.order_id}")
 
             # Handle inventory for cancellations/returns
             if new_status in ['Cancelled', 'Returned']:
-                with transaction.atomic():
-                    for item in order.items.all():
-                        product = item.product
-                        product.stock += item.quantity
-                        product.save()
-                        # No variant handling needed for OrderItem
+                for item in order.items.filter(status__in=['Cancelled', 'Returned']):
+                    product = item.product
+                    product.stock += item.quantity
+                    product.save()
 
             messages.success(request, f'Order status updated to {new_status}')
             return redirect('order_details', order_id=order.id)
