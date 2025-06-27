@@ -169,6 +169,7 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True)  # Add variant field
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
@@ -190,7 +191,8 @@ class OrderItem(models.Model):
         return self.price * self.quantity
 
     def __str__(self):
-        return f"{self.product.name} (Qty: {self.quantity})"
+        variant_str = f" ({self.variant.volume}{self.variant.unit})" if self.variant else ""
+        return f"{self.product.name}{variant_str} (Qty: {self.quantity})"
     
 
 class Wallet(models.Model):
