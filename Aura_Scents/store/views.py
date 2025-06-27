@@ -1208,15 +1208,17 @@ def return_order_item(request, order_id, item_id):
             item.remarks = reason
             item.save()
 
-            # Update order status
-            order.status = 'Return Requested'
+            # Update order status only if all items are return requested or returned
+            all_items = order.items.all()
+            if all(item.status in ['Return Requested', 'Returned'] for item in all_items):
+                order.status = 'Return Requested'
             order.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Return requested successfully.',
-            'new_status': item.status
-        })
+            return JsonResponse({
+                'success': True,
+                'message': 'Return requested successfully.',
+                'new_status': item.status
+            })
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'message': 'Invalid request format.'})
     except Exception as e:
@@ -1578,6 +1580,7 @@ def checkout(request):
                 OrderItem.objects.create(
                     order=order,
                     product=item.product,
+                    variant=item.variant,
                     quantity=item.quantity,
                     price=item.get_price()
                 )

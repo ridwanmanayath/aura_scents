@@ -87,13 +87,8 @@
 </div>
 <div>
 <p style="font-weight: bold;">{{ item.product.name }}
-{% if item.product.variants.exists %}
--
-{% for variant in item.product.variants.all %}
-{% if variant.price == item.price %}
-{{ variant.volume }}{{ variant.unit }}
-{% endif %}
-{% endfor %}
+{% if item.variant %}
+ - {{ item.variant.volume }}{{ item.variant.unit }}
 {% endif %}
 </p>
 <p style="color: #6B7280; font-size: 0.875rem;">{{ item.product.category }}</p>
@@ -108,7 +103,7 @@
 <td>₹{{ item.subtotal|floatformat:2 }}</td>
 <td>
 <span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span>
-{% if item.status in 'Cancelled,Returned' and order.is_paid %}
+{% if item.status in 'Cancelled,Returned' and order.is_paid and order.payment_method != 'COD' %}
 {% if order.refund_processed %}
 <p style="font-size: 0.875rem; color: #10B981;">Refunded ₹{{ item.subtotal|floatformat:2 }}</p>
 {% else %}
@@ -188,7 +183,7 @@
 {% if order.status == 'Returned' or order.status == 'Cancelled' %}
 <div class="return-actions" style="margin-top: 1.5rem;">
 <h3 style="margin-bottom: 1rem;">Refund Management</h3>
-{% if order.is_paid %}
+{% if order.is_paid and order.payment_method != 'COD' %}
 {% if order.refund_processed %}
 <p>Refund of ₹{{ order.total_amount|floatformat:2 }} was processed successfully.</p>
 {% else %}
