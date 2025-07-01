@@ -28,8 +28,10 @@
 
 <!-- Product Images -->
 <div class="md:w-1/2 px-4 mb-6 md:mb-0 relative">
-<div class="relative bg-purple-50 rounded-lg overflow-hidden h-80 md:h-96">
+<div class="relative bg-purple-50 rounded-lg overflow-hidden h-80 md:h-96" id="image-container">
 <img id="mainImage" src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain" />
+<!-- Zoom Lens -->
+<div id="zoom-lens" class="hidden absolute bg-white opacity-30 border border-gray-300 rounded-full"></div>
 <!-- Heart Icon inside image -->
 <button id="wishlist-btn" data-product-id="{{ product.id }}"
 class="absolute top-4 right-4 bg-white rounded-full p-3 shadow-md hover:bg-gray-100 transition duration-300
@@ -41,6 +43,8 @@ class="absolute top-4 right-4 bg-white rounded-full p-3 shadow-md hover:bg-gray-
 {% endif %}
 </button>
 </div>
+<!-- Zoom Result -->
+<div id="zoom-result" class="hidden absolute bg-white border border-gray-300 rounded-lg overflow-hidden"></div>
 
 <div class="flex space-x-2 mt-4">
 {% for image in product.images.all %}
@@ -172,6 +176,25 @@ class="bg-pink-500 text-white px-8 py-3 rounded-full font-medium hover:bg-pink-6
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<style>
+#zoom-lens {
+  width: 100px;
+  height: 100px;
+  pointer-events: none;
+}
+#zoom-result {
+  width: 600px;
+  height: 400px;
+  z-index: 10;
+  top: 0;
+  left: 100%;
+  margin-left: 20px;
+}
+#image-container:hover #zoom-lens, #image-container:hover #zoom-result {
+  display: block;
+}
+</style>
+
 <script>
 function getCookie(name) {
 let cookieValue = null;
@@ -196,12 +219,56 @@ document.getElementById('form-quantity').value = quantity;
 
 function changeImage(thumb) {
 const mainImage = document.getElementById("mainImage");
+const zoomResult = document.getElementById("zoom-result");
 const newSrc = thumb.getAttribute("src");
 mainImage.src = newSrc;
+zoomResult.style.backgroundImage = `url(${newSrc})`;
 
 const thumbnails = document.querySelectorAll(".thumbnail-container, .cursor-pointer");
 thumbnails.forEach(el => el.classList.remove("border-purple-600"));
 thumb.parentElement.classList.add("border-purple-600");
+}
+
+function setupZoom() {
+const img = document.getElementById('mainImage');
+const lens = document.getElementById('zoom-lens');
+const result = document.getElementById('zoom-result');
+const container = document.getElementById('image-container');
+
+result.style.backgroundImage = `url(${img.src})`;
+result.style.backgroundSize = `${img.width * 2}px ${img.height * 2}px`;
+
+container.addEventListener('mousemove', moveLens);
+container.addEventListener('mouseenter', () => {
+lens.classList.remove('hidden');
+result.classList.remove('hidden');
+});
+container.addEventListener('mouseleave', () => {
+lens.classList.add('hidden');
+result.classList.add('hidden');
+});
+
+function moveLens(e) {
+const pos = getCursorPos(e);
+let x = pos.x - (lens.offsetWidth / 2);
+let y = pos.y - (lens.offsetHeight / 2);
+
+if (x > img.width - lens.offsetWidth) x = img.width - lens.offsetWidth;
+if (x < 0) x = 0;
+if (y > img.height - lens.offsetHeight) y = img.height - lens.offsetHeight;
+if (y < 0) y = 0;
+
+lens.style.left = x + 'px';
+lens.style.top = y + 'px';
+result.style.backgroundPosition = `-${x * 2}px -${y * 2}px`;
+}
+
+function getCursorPos(e) {
+const rect = img.getBoundingClientRect();
+const x = e.clientX - rect.left;
+const y = e.clientY - rect.top;
+return { x, y };
+}
 }
 
 // Handle variant selection
@@ -235,6 +302,9 @@ document.getElementById('selected-variant').value = variantOption.value;
 }
 
 $(document).ready(function () {
+// Initialize zoom
+setupZoom();
+
 // Handle variant selection change
 $('#variant-select').on('change', function() {
 const selectedOption = this.options[this.selectedIndex];
