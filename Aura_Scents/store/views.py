@@ -746,35 +746,52 @@ def update_cart(request, item_id):
         
         available_stock = cart_item.get_stock()
 
+        # Get price and apply best offer
+        original_price = cart_item.variant.price if cart_item.variant else cart_item.product.price
+        best_offer = get_best_offer_for_product(cart_item.product)
+        discounted_price = original_price
+        if best_offer:
+            discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+
         if action == 'increment':
             if cart_item.quantity >= available_stock:
-                return JsonResponse({'status': 'error', 'message': 'Only limited stock available'})
+                return JsonResponse({'status': 'error', 'message': 'Only limited stock available'}, status=400)
             elif cart_item.quantity >= MAX_QUANTITY:
-                return JsonResponse({'status': 'error', 'message': 'Maximum quantity per user reached'})
+                return JsonResponse({'status': 'error', 'message': 'Maximum quantity per user reached'}, status=400)
             else:
                 cart_item.quantity += 1
                 cart_item.save()
+                new_subtotal = discounted_price * Decimal(str(cart_item.quantity))
                 return JsonResponse({
                     'status': 'success', 
                     'message': 'Quantity increased',
                     'new_quantity': cart_item.quantity,
-                    'new_subtotal': float(cart_item.subtotal())
+                    'new_subtotal': float(new_subtotal),
+                    'discounted_price': float(discounted_price),
+                    'original_price': float(original_price),
+                    'discount_percentage': best_offer.discount_percentage if best_offer else None,
+                    'offer_type': best_offer.get_offer_type_display() if best_offer else None
                 })
 
         elif action == 'decrement':
             if cart_item.quantity > 1:
                 cart_item.quantity -= 1
                 cart_item.save()
+                new_subtotal = discounted_price * Decimal(str(cart_item.quantity))
                 return JsonResponse({
                     'status': 'success', 
                     'message': 'Quantity decreased',
                     'new_quantity': cart_item.quantity,
-                    'new_subtotal': float(cart_item.subtotal())
+                    'new_subtotal': float(new_subtotal),
+                    'discounted_price': float(discounted_price),
+                    'original_price': float(original_price),
+                    'discount_percentage': best_offer.discount_percentage if best_offer else None,
+                    'offer_type': best_offer.get_offer_type_display() if best_offer else None
                 })
             else:
-                return JsonResponse({'status': 'error', 'message': 'Minimum quantity is 1'})
+                return JsonResponse({'status': 'error', 'message': 'Minimum quantity is 1'}, status=400)
 
-        return JsonResponse({'status': 'error', 'message': 'Invalid action'})
+        return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
         
     except Cart.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Cart not found'}, status=404)
@@ -1533,7 +1550,6 @@ def send_email_update_otp(email, otp_code):
     send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
 
 ############################################################################
-import logging
 @login_required
 def checkout(request):
     cart = get_object_or_404(Cart, user=request.user)
@@ -1541,9 +1557,25 @@ def checkout(request):
 
     # Filter out blocked/deleted products and categories
     valid_items = []
+    cart_data = []
+    subtotal = Decimal('0.00')
     for item in cart_items:
         if (not item.product.is_blocked and not item.product.is_deleted and
-            not item.product.category.is_blocked and not item.product.category.is_deleted):
+                not item.product.category.is_blocked and not item.product.category.is_deleted):
+            # Get price and offer
+            original_price = item.variant.price if item.variant else item.product.price
+            best_offer = get_best_offer_for_product(item.product)
+            discounted_price = original_price
+            if best_offer:
+                discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+            cart_data.append({
+                'item': item,
+                'original_price': original_price,
+                'discounted_price': discounted_price,
+                'best_offer': best_offer,
+                'subtotal': discounted_price * Decimal(str(item.quantity))
+            })
+            subtotal += discounted_price * Decimal(str(item.quantity))
             valid_items.append(item)
 
     # If any invalid items were found, update the cart
@@ -1552,16 +1584,15 @@ def checkout(request):
         cart_items = valid_items
 
     # Calculate order totals
-    subtotal = sum(item.subtotal() for item in cart_items)
     tax = subtotal * Decimal('0.05')
-    shipping = Decimal('0.00') if subtotal > 1000 else Decimal('350.00')
+    shipping = Decimal('0.00') if subtotal > Decimal('1000') else Decimal('350.00')
     discount = Decimal('0.00')
     coupon_applied = False
     coupon_code = ''
     coupon_message = ''
 
     # Handle coupon logic
-    if subtotal >= 1500:
+    if subtotal >= Decimal('1500'):
         coupon_code = 'AS100'
         coupon_message = 'Flat ₹100 OFF'
 
@@ -1668,22 +1699,22 @@ def checkout(request):
                 payment_method=payment_method
             )
 
-            # Create order items
-            for item in cart_items:
+            # Create order items with discounted prices
+            for item in cart_data:
                 OrderItem.objects.create(
                     order=order,
-                    product=item.product,
-                    variant=item.variant,
-                    quantity=item.quantity,
-                    price=item.get_price()
+                    product=item['item'].product,
+                    variant=item['item'].variant,
+                    quantity=item['item'].quantity,
+                    price=item['discounted_price']  # Store discounted price
                 )
 
                 # Decrement stock
-                if item.variant:
-                    item.variant.stock -= item.quantity
-                    item.variant.save()
-                item.product.stock -= item.quantity
-                item.product.save()
+                if item['item'].variant:
+                    item['item'].variant.stock -= item['item'].quantity
+                    item['item'].variant.save()
+                item['item'].product.stock -= item['item'].quantity
+                item['item'].product.save()
 
             # Clear the cart
             cart.items.all().delete()
@@ -1764,7 +1795,7 @@ def checkout(request):
 
     return render(request, 'store/checkout.html', {
         'addresses': Address.objects.filter(user=request.user),
-        'cart_items': cart_items,
+        'cart_items': cart_data,
         'subtotal': subtotal,
         'tax': tax,
         'shipping': shipping,
@@ -1773,9 +1804,8 @@ def checkout(request):
         'coupon_code': coupon_code,
         'coupon_message': coupon_message,
         'coupon_applied': coupon_applied,
-        'free_shipping': shipping == 0
+        'free_shipping': shipping == Decimal('0')
     })
-
 @csrf_exempt
 def payment_handler(request):
     if request.method == 'POST':

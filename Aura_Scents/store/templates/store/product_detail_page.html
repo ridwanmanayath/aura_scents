@@ -62,11 +62,11 @@ class="absolute top-4 right-4 bg-white rounded-full p-3 shadow-md hover:bg-gray-
 
 <div class="mb-6">
 {% if best_offer %}
-<span id="product-price" class="text-2xl font-bold text-purple-800">${{ discounted_price|floatformat:2 }}</span>
-<span class="text-lg text-gray-500 line-through ml-2">${{ original_price|floatformat:2 }}</span>
+<span id="product-price" class="text-2xl font-bold text-purple-800">₹{{ discounted_price|floatformat:2 }}</span>
+<span class="text-lg text-gray-500 line-through ml-2">₹{{ original_price|floatformat:2 }}</span>
 <span class="text-sm text-green-600 ml-2">{{ best_offer.discount_percentage }}% Off ({{ best_offer.get_offer_type_display }})</span>
 {% else %}
-<span id="product-price" class="text-2xl font-bold text-purple-800">${{ original_price|floatformat:2 }}</span>
+<span id="product-price" class="text-2xl font-bold text-purple-800">₹{{ original_price|floatformat:2 }}</span>
 {% endif %}
 </div>
 
@@ -93,7 +93,7 @@ data-price="{{ item.original_price|floatformat:2 }}"
 data-discounted-price="{{ item.discounted_price|floatformat:2 }}"
 data-stock="{{ item.variant.stock }}"
 {% if item.variant == default_variant %}selected{% endif %}>
-{{ item.variant.volume }}{{ item.variant.unit }} - ${{ item.discounted_price|floatformat:2 }}
+{{ item.variant.volume }}{{ item.variant.unit }} - ₹{{ item.discounted_price|floatformat:2 }}
 {% if best_offer %} ({{ best_offer.discount_percentage }}% Off){% endif %}
 {% if item.variant.stock == 0 %} (Out of Stock){% endif %}
 </option>
@@ -167,11 +167,11 @@ class="bg-pink-500 text-white px-8 py-3 rounded-full font-medium hover:bg-pink-6
 </div>
 <h3 class="font-medium">{{ item.product.name }}</h3>
 {% if item.best_offer %}
-<p class="text-purple-800 font-bold">${{ item.discounted_price|floatformat:2 }}</p>
-<p class="text-gray-500 line-through">${{ item.original_price|floatformat:2 }}</p>
+<p class="text-purple-800 font-bold">₹{{ item.discounted_price|floatformat:2 }}</p>
+<p class="text-gray-500 line-through">₹{{ item.original_price|floatformat:2 }}</p>
 <p class="text-sm text-green-600">{{ item.best_offer.discount_percentage }}% Off ({{ item.best_offer.get_offer_type_display }})</p>
 {% else %}
-<p class="text-purple-800 font-bold">${{ item.original_price|floatformat:2 }}</p>
+<p class="text-purple-800 font-bold">₹{{ item.original_price|floatformat:2 }}</p>
 {% endif %}
 </a>
 {% endfor %}
