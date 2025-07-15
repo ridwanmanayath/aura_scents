@@ -326,22 +326,34 @@ def toggle_wishlist(request, product_id, variant_id=None):
 @login_required
 def wishlist(request):
     wishlist_items = WishlistItem.objects.filter(user=request.user).select_related('product', 'variant')
-    wishlist_data = [
-        {
+    wishlist_data = []
+    for item in wishlist_items:
+        if item.product.is_blocked or item.product.is_deleted or (item.variant and (item.variant.is_blocked or item.variant.is_deleted)):
+            continue
+
+        # Get price (variant price if exists, else product price)
+        original_price = item.variant.price if item.variant else item.product.price
+
+        # Get best offer for the product
+        best_offer = get_best_offer_for_product(item.product)
+        discounted_price = original_price
+        if best_offer:
+            discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+
+        wishlist_data.append({
             'product': item.product,
             'variant': item.variant,
-            'price': item.get_price(),
+            'original_price': original_price,
+            'discounted_price': discounted_price,
+            'best_offer': best_offer,
             'display_name': item.get_display_name()
-        }
-        for item in wishlist_items
-        if not item.product.is_blocked and not item.product.is_deleted
-        and (not item.variant or (not item.variant.is_blocked and not item.variant.is_deleted))
-    ]
+        })
 
     context = {
         'wishlist_data': wishlist_data,
     }
     return render(request, 'store/wishlist.html', context)
+
 
 def send_otp_email(user, otp_code):
     subject = "Your OTP Code"

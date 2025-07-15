@@ -33,7 +33,15 @@
 <a href="{% url 'product_detail' item.product.id %}" class="text-lg font-semibold text-gray-800 hover:text-purple-600">
 {{ item.display_name }}
 </a>
-<p class="text-pink-600 font-bold mt-1">₹{{ item.price }}</p>
+<div class="mt-1">
+{% if item.best_offer %}
+<p class="text-pink-600 font-bold">₹{{ item.discounted_price|floatformat:2 }}</p>
+<p class="text-gray-500 line-through">₹{{ item.original_price|floatformat:2 }}</p>
+<p class="text-sm text-green-600">{{ item.best_offer.discount_percentage }}% Off ({{ item.best_offer.get_offer_type_display }})</p>
+{% else %}
+<p class="text-pink-600 font-bold">₹{{ item.original_price|floatformat:2 }}</p>
+{% endif %}
+</div>
 </div>
 
 <div class="flex flex-col items-end space-y-2">
@@ -69,108 +77,108 @@ title="Remove from Wishlist">
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const csrfToken = '{{ csrf_token }}';
+const csrfToken = '{{ csrf_token }}';
 
-    // Add to Cart
-    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            const productId = this.dataset.productId;
-            const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
+// Add to Cart
+document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+button.addEventListener('click', function () {
+const productId = this.dataset.productId;
+const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
 
-            // Always use the same URL for add-to-cart
-            const url = `/add-to-cart/${productId}/`;
+// Always use the same URL for add-to-cart
+const url = `/add-to-cart/${productId}/`;
 
-            // Prepare POST data
-            const postData = new URLSearchParams();
-            postData.append('quantity', '1');
-            if (variantId) {
-                postData.append('variant_id', variantId);
-            }
+// Prepare POST data
+const postData = new URLSearchParams();
+postData.append('quantity', '1');
+if (variantId) {
+postData.append('variant_id', variantId);
+}
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: postData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Remove from wishlist DOM
-                    const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
-                    if (itemDiv) itemDiv.remove();
+fetch(url, {
+method: 'POST',
+headers: {
+'X-CSRFToken': csrfToken,
+'Content-Type': 'application/x-www-form-urlencoded',
+},
+body: postData
+})
+.then(response => response.json())
+.then(data => {
+if (data.status === 'success') {
+// Remove from wishlist DOM
+const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
+if (itemDiv) itemDiv.remove();
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Added to Cart!',
-                        text: 'The product has been added to your cart.',
-                        confirmButtonColor: '#d33'
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#d33'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error adding to cart:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred while adding to cart.',
-                    confirmButtonColor: '#d33'
-                });
-            });
-        });
-    });
+Swal.fire({
+icon: 'success',
+title: 'Added to Cart!',
+text: 'The product has been added to your cart.',
+confirmButtonColor: '#d33'
+});
+} else {
+Swal.fire({
+icon: 'error',
+title: 'Error',
+text: data.message,
+confirmButtonColor: '#d33'
+});
+}
+})
+.catch(error => {
+console.error('Error adding to cart:', error);
+Swal.fire({
+icon: 'error',
+title: 'Error',
+text: 'An error occurred while adding to cart.',
+confirmButtonColor: '#d33'
+});
+});
+});
+});
 
-    // Delete from Wishlist
-    document.querySelectorAll('.delete-wishlist-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            const productId = this.dataset.productId;
-            const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
+// Delete from Wishlist
+document.querySelectorAll('.delete-wishlist-btn').forEach(button => {
+button.addEventListener('click', function () {
+const productId = this.dataset.productId;
+const variantId = this.dataset.variantId !== '0' ? this.dataset.variantId : '';
 
-            // Construct the URL based on whether a variant is selected
-            const url = variantId ? `/toggle-wishlist/${productId}/${variantId}/` : `/toggle-wishlist/${productId}/`;
+// Construct the URL based on whether a variant is selected
+const url = variantId ? `/toggle-wishlist/${productId}/${variantId}/` : `/toggle-wishlist/${productId}/`;
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
-                    if (itemDiv) itemDiv.remove();
+fetch(url, {
+method: 'POST',
+headers: {
+'X-CSRFToken': csrfToken,
+'X-Requested-With': 'XMLHttpRequest'
+}
+})
+.then(response => response.json())
+.then(data => {
+if (data.status === 'success') {
+const itemDiv = document.getElementById(`wishlist-item-${productId}-${variantId || '0'}`);
+if (itemDiv) itemDiv.remove();
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Removed',
-                        text: 'Item removed from wishlist.',
-                        confirmButtonColor: '#d33'
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Could not remove item.',
-                        confirmButtonColor: '#d33'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error removing from wishlist:', error);
-            });
-        });
-    });
+Swal.fire({
+icon: 'success',
+title: 'Removed',
+text: 'Item removed from wishlist.',
+confirmButtonColor: '#d33'
+});
+} else {
+Swal.fire({
+icon: 'error',
+title: 'Error',
+text: data.message || 'Could not remove item.',
+confirmButtonColor: '#d33'
+});
+}
+})
+.catch(error => {
+console.error('Error removing from wishlist:', error);
+});
+});
+});
 });
 </script>
 
