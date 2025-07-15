@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from back_office.models import Product,Category,User,ProductVariant
+from back_office.models import *
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q,Prefetch
 
 from django.contrib import messages
 
@@ -82,21 +82,27 @@ def home_page(request):
 
 
 def products_page(request):
-    from django.db.models import Prefetch
-
-    # Base queryset with prefetch for variants and images
+    # Base queryset with prefetch for variants, images, and offers
     products = Product.objects.filter(
-        is_blocked=False, 
+        is_blocked=False,
         is_deleted=False
     ).prefetch_related(
         Prefetch(
             'variants',
             queryset=ProductVariant.objects.filter(
-                is_deleted=False, 
+                is_deleted=False,
                 is_blocked=False
-            ).order_by('created_at')  # Order by created_at to get consistent "first" variant
+            ).order_by('created_at')
         ),
-        'images'
+        'images',
+        Prefetch(
+            'offers',
+            queryset=ProductOffer.objects.select_related('offer')
+        ),
+        Prefetch(
+            'category__offers',
+            queryset=CategoryOffer.objects.select_related('offer')
+        )
     )
 
     categories = Category.objects.filter(is_deleted=False, is_blocked=False)
@@ -109,19 +115,29 @@ def products_page(request):
     # --- Filter by Category ---
     category_id = request.GET.get('category')
     if category_id and category_id.isdigit():
-        products = products.filter(category_id=int(category_id))    
+        products = products.filter(category_id=int(category_id))
 
-    # Convert to list to add display_price attribute
+    # Convert to list to add display_price and offer attributes
     products_list = list(products)
-    
-    # Add display_price to each product
+
+    # Add display_price and offer details to each product
     for product in products_list:
-        # Check if product has variants
+        # Get base price (from variant or product)
         first_variant = product.variants.first()
-        if first_variant:
-            product.display_price = first_variant.price
+        product.display_price = first_variant.price if first_variant else product.price
+        
+        # Get best offer and calculate discounted price
+        best_offer = get_best_offer_for_product(product)
+        product.best_offer = best_offer
+        if best_offer and best_offer.is_valid():
+            discount_multiplier = Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0'))
+            product.discounted_price = product.display_price * discount_multiplier
+            product.discount_percentage = best_offer.discount_percentage
+            product.offer_type = best_offer.offer_type
         else:
-            product.display_price = product.price
+            product.discounted_price = None
+            product.discount_percentage = None
+            product.offer_type = None
 
     # --- Filter by Price Range (Radio Button) ---
     price_range = request.GET.get('price_range', '')
@@ -132,26 +148,32 @@ def products_page(request):
             parts = price_range.split('-')
             if parts[0]:
                 min_price = parts[0]
-                # Filter by display_price
-                products_list = [p for p in products_list if p.display_price >= float(min_price)]
+                # Filter by discounted_price if available, else display_price
+                products_list = [
+                    p for p in products_list 
+                    if (p.discounted_price or p.display_price) >= float(min_price)
+                ]
             if len(parts) > 1 and parts[1]:
                 max_price = parts[1]
-                # Filter by display_price
-                products_list = [p for p in products_list if p.display_price <= float(max_price)]
+                # Filter by discounted_price if available, else display_price
+                products_list = [
+                    p for p in products_list 
+                    if (p.discounted_price or p.display_price) <= float(max_price)
+                ]
 
     # --- Sorting ---
     sort_by = request.GET.get('sort')
     if sort_by == 'price_asc':
-        products_list.sort(key=lambda x: x.display_price)
+        products_list.sort(key=lambda x: x.discounted_price or x.display_price)
     elif sort_by == 'price_desc':
-        products_list.sort(key=lambda x: x.display_price, reverse=True)
+        products_list.sort(key=lambda x: x.discounted_price or x.display_price, reverse=True)
     elif sort_by == 'name_asc':
         products_list.sort(key=lambda x: x.name)
     elif sort_by == 'name_desc':
         products_list.sort(key=lambda x: x.name, reverse=True)
 
     # --- Pagination ---
-    paginator = Paginator(products_list, 5)  
+    paginator = Paginator(products_list, 5)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -172,7 +194,6 @@ def products_page(request):
         'wishlist_product_ids': wishlist_product_ids,
     }
     return render(request, 'store/products_page.html', context)
-
 
 def product_detail_view(request, product_id):
     try:
