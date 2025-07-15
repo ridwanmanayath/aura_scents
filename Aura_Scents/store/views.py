@@ -200,7 +200,7 @@ def product_detail_view(request, product_id):
         product = Product.objects.prefetch_related('images', 'variants').get(pk=product_id)
     except Product.DoesNotExist:
         messages.error(request, "Product not found.")
-        return redirect('products_page')  
+        return redirect('products_page')
 
     # Redirect if blocked, deleted, or category is blocked
     if product.is_blocked or product.is_deleted or product.category.is_blocked:
@@ -209,16 +209,14 @@ def product_detail_view(request, product_id):
 
     # Get available variants (not blocked or deleted)
     available_variants = product.variants.filter(is_blocked=False, is_deleted=False).order_by('volume')
-    
+
     # Determine default variant and stock status
     default_variant = None
     if available_variants.exists():
-        # Use the first available variant as default
         default_variant = available_variants.first()
         current_stock = default_variant.stock
         current_price = default_variant.price
     else:
-        # Fallback to product's own stock and price if no variants
         current_stock = product.stock
         current_price = product.price
 
@@ -228,12 +226,44 @@ def product_detail_view(request, product_id):
     else:
         stock_status = f"In Stock: {current_stock}"
 
-    # Related products
+    # Get best offer for the product
+    best_offer = get_best_offer_for_product(product)
+    original_price = current_price
+    discounted_price = current_price
+    if best_offer:
+        discounted_price = current_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+
+    # Calculate discounted prices for all variants
+    variant_data = []
+    for variant in available_variants:
+        variant_discounted_price = variant.price
+        if best_offer:
+            variant_discounted_price = variant.price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+        variant_data.append({
+            'variant': variant,
+            'original_price': variant.price,
+            'discounted_price': variant_discounted_price
+        })
+
+    # Related products with discounted prices
     related_products = (
         Product.objects
         .filter(category=product.category, is_blocked=False, is_deleted=False)
         .exclude(id=product.id)[:4]
     )
+    related_products_data = []
+    for related in related_products:
+        related_best_offer = get_best_offer_for_product(related)
+        related_original_price = related.price
+        related_discounted_price = related.price
+        if related_best_offer:
+            related_discounted_price = related.price * (Decimal('1.0') - (related_best_offer.discount_percentage / Decimal('100.0')))
+        related_products_data.append({
+            'product': related,
+            'original_price': related_original_price,
+            'discounted_price': related_discounted_price,
+            'best_offer': related_best_offer
+        })
 
     # Check if product is already in user's wishlist
     in_wishlist = False
@@ -242,13 +272,16 @@ def product_detail_view(request, product_id):
 
     context = {
         'product': product,
-        'available_variants': available_variants,
+        'available_variants': variant_data,
         'default_variant': default_variant,
         'current_price': current_price,
+        'original_price': original_price,
+        'discounted_price': discounted_price,
+        'best_offer': best_offer,
         'current_stock': current_stock,
         'breadcrumbs': [product.category.name, product.name],
         'stock_status': stock_status,
-        'related_products': related_products,
+        'related_products': related_products_data,
         'in_wishlist': in_wishlist,
     }
 
@@ -748,47 +781,47 @@ def clear_cart(request):
         return JsonResponse({'status': 'error', 'message': 'An unexpected error occurred'}, status=500)
 
 
-def product_detail(request, product_id):
-    """Product detail view with variant support"""
-    product = get_object_or_404(Product, id=product_id)
+# def product_detail(request, product_id):
+#     """Product detail view with variant support"""
+#     product = get_object_or_404(Product, id=product_id)
     
-    # Get available variants (not blocked/deleted)
-    available_variants = product.variants.filter(
-        is_blocked=False, 
-        is_deleted=False
-    ).order_by('price')
+#     # Get available variants (not blocked/deleted)
+#     available_variants = product.variants.filter(
+#         is_blocked=False, 
+#         is_deleted=False
+#     ).order_by('price')
     
-    # Get default variant (first available or cheapest)
-    default_variant = available_variants.first() if available_variants.exists() else None
+#     # Get default variant (first available or cheapest)
+#     default_variant = available_variants.first() if available_variants.exists() else None
     
-    # Calculate current stock
-    current_stock = default_variant.stock if default_variant else product.stock
+#     # Calculate current stock
+#     current_stock = default_variant.stock if default_variant else product.stock
     
-    # Check if product is in user's wishlist
-    in_wishlist = False
-    if request.user.is_authenticated:
-        in_wishlist = WishlistItem.objects.filter(
-            user=request.user, 
-            product=product
-        ).exists()
+#     # Check if product is in user's wishlist
+#     in_wishlist = False
+#     if request.user.is_authenticated:
+#         in_wishlist = WishlistItem.objects.filter(
+#             user=request.user, 
+#             product=product
+#         ).exists()
     
-    # Get related products
-    related_products = Product.objects.filter(
-        category=product.category,
-        is_blocked=False,
-        is_deleted=False
-    ).exclude(id=product.id)[:4]
+#     # Get related products
+#     related_products = Product.objects.filter(
+#         category=product.category,
+#         is_blocked=False,
+#         is_deleted=False
+#     ).exclude(id=product.id)[:4]
     
-    context = {
-        'product': product,
-        'available_variants': available_variants,
-        'default_variant': default_variant,
-        'current_stock': current_stock,
-        'in_wishlist': in_wishlist,
-        'related_products': related_products,
-    }
+#     context = {
+#         'product': product,
+#         'available_variants': available_variants,
+#         'default_variant': default_variant,
+#         'current_stock': current_stock,
+#         'in_wishlist': in_wishlist,
+#         'related_products': related_products,
+#     }
     
-    return render(request, 'store/product_detail.html', context)
+#     return render(request, 'store/product_detail.html', context)
 
 # Update the checkout view
 # @login_required
