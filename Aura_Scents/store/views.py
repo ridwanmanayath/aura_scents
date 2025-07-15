@@ -597,13 +597,32 @@ def address_delete(request, pk):
 def cart_view(request):
     cart = None
     items = []
-    cart_total = 0
+    cart_total = Decimal('0.00')
 
     if request.user.is_authenticated:
         cart = Cart.objects.filter(user=request.user).first()
         if cart:
             items = cart.items.select_related('product', 'variant')
-            cart_total = sum(item.subtotal() for item in items)
+            cart_data = []
+            for item in items:
+                # Get price (variant price if exists, else product price)
+                original_price = item.variant.price if item.variant else item.product.price
+                # Get best offer for the product
+                best_offer = get_best_offer_for_product(item.product)
+                discounted_price = original_price
+                if best_offer:
+                    discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+                # Calculate subtotal based on discounted price
+                subtotal = discounted_price * Decimal(str(item.quantity))
+                cart_data.append({
+                    'item': item,
+                    'original_price': original_price,
+                    'discounted_price': discounted_price,
+                    'best_offer': best_offer,
+                    'subtotal': subtotal
+                })
+            cart_total = sum(item['subtotal'] for item in cart_data)
+            items = cart_data
 
     context = {
         'cart': cart,
@@ -611,7 +630,6 @@ def cart_view(request):
         'cart_total': cart_total,
     }
     return render(request, 'store/cart.html', context)
-
 
 # Add to Cart
 MAX_QUANTITY = 10
@@ -629,7 +647,7 @@ def add_to_cart(request, product_id):
     # Get variant if specified or use first available variant
     variant_id = request.POST.get('variant_id')
     variant = None
-    
+
     # If product has variants but no variant was specified, use the first available variant
     if product.variants.exists() and not variant_id:
         variant = product.variants.filter(is_blocked=False, is_deleted=False).first()
@@ -666,7 +684,7 @@ def add_to_cart(request, product_id):
     cart_item, created = CartItem.objects.get_or_create(
         cart=cart,
         product=product,
-        variant=variant,  
+        variant=variant,
         defaults={'quantity': 0}
     )
 
@@ -683,6 +701,13 @@ def add_to_cart(request, product_id):
     # Calculate updated cart quantity
     total_quantity = sum(item.quantity for item in cart.items.all())
 
+    # Get best offer and discounted price
+    original_price = variant.price if variant else product.price
+    best_offer = get_best_offer_for_product(product)
+    discounted_price = original_price
+    if best_offer:
+        discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+
     # Remove from wishlist if exists
     WishlistItem.objects.filter(user=request.user, product=product).delete()
 
@@ -690,9 +715,11 @@ def add_to_cart(request, product_id):
         'status': 'success',
         'message': 'Added to cart',
         'cart_quantity': total_quantity,
-        'item_price': str(variant.price if variant else product.price)
+        'item_price': str(discounted_price),  # Return discounted price
+        'original_price': str(original_price),
+        'discount_percentage': best_offer.discount_percentage if best_offer else None,
+        'offer_type': best_offer.get_offer_type_display() if best_offer else None
     })
-
 
 @csrf_exempt
 @login_required
