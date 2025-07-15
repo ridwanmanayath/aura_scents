@@ -1588,13 +1588,18 @@ def checkout(request):
     shipping = Decimal('0.00') if subtotal > Decimal('1000') else Decimal('350.00')
     discount = Decimal('0.00')
     coupon_applied = False
-    coupon_code = ''
+    applied_coupon = None
     coupon_message = ''
 
-    # Handle coupon logic
-    if subtotal >= Decimal('1500'):
-        coupon_code = 'AS100'
-        coupon_message = 'Flat ₹100 OFF'
+    # Get all valid coupons
+    valid_coupons = Coupon.objects.filter(
+        is_active=True,
+        valid_from__lte=timezone.now(),
+        valid_until__gte=timezone.now(),
+        minimum_order_amount__lte=subtotal
+    ).filter(
+        models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
+    )
 
     # Handle POST actions
     if request.method == 'POST':
@@ -1633,20 +1638,41 @@ def checkout(request):
 
         # If user applies coupon
         elif 'apply_coupon' in request.POST:
-            if coupon_code and request.POST.get('coupon_code', '').strip() == coupon_code:
-                discount = Decimal('100.00')
-                coupon_applied = True
-
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'discount': str(discount),
-                    'total': str(subtotal + tax + shipping - discount),
-                    'coupon_applied': True,
-                    'message': 'Coupon applied successfully!'
-                })
-            else:
-                messages.success(request, 'Coupon applied successfully!')
+            coupon_code = request.POST.get('coupon_code', '').strip()
+            try:
+                coupon = Coupon.objects.get(code=coupon_code)
+                if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
+                    discount = coupon.apply_discount(subtotal)
+                    coupon_applied = True
+                    applied_coupon = coupon
+                    coupon_message = f"{coupon.description} ({coupon.code})"
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': True,
+                            'discount': str(discount),
+                            'total': str(subtotal + tax + shipping - discount),
+                            'coupon_applied': True,
+                            'message': 'Coupon applied successfully!'
+                        })
+                    messages.success(request, 'Coupon applied successfully!')
+                    return redirect('checkout')
+                else:
+                    error_message = 'Coupon is invalid or not applicable for this order.'
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': False,
+                            'message': error_message
+                        }, status=400)
+                    messages.error(request, error_message)
+                    return redirect('checkout')
+            except Coupon.DoesNotExist:
+                error_message = 'Invalid coupon code.'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'message': error_message
+                    }, status=400)
+                messages.error(request, error_message)
                 return redirect('checkout')
 
         # If user places order
@@ -1664,9 +1690,28 @@ def checkout(request):
                 messages.error(request, error_response['error'])
                 return redirect('checkout')
 
-            if coupon_code and request.POST.get('coupon_code', '').strip() == coupon_code:
-                discount = Decimal('100.00')
-                coupon_applied = True
+            coupon_code = request.POST.get('coupon_code', '').strip()
+            if coupon_code:
+                try:
+                    coupon = Coupon.objects.get(code=coupon_code)
+                    if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
+                        discount = coupon.apply_discount(subtotal)
+                        coupon_applied = True
+                        applied_coupon = coupon
+                        coupon.usage_count += 1
+                        coupon.save()
+                    else:
+                        error_response = {'error': 'Coupon is invalid or not applicable.'}
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse(error_response, status=400)
+                        messages.error(request, error_response['error'])
+                        return redirect('checkout')
+                except Coupon.DoesNotExist:
+                    error_response = {'error': 'Invalid coupon code.'}
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse(error_response, status=400)
+                    messages.error(request, error_response['error'])
+                    return redirect('checkout')
 
             address_id = request.POST.get('selected_address')
             if not address_id:
@@ -1801,11 +1846,52 @@ def checkout(request):
         'shipping': shipping,
         'discount': discount,
         'total': total,
-        'coupon_code': coupon_code,
-        'coupon_message': coupon_message,
+        'valid_coupons': valid_coupons,
         'coupon_applied': coupon_applied,
+        'applied_coupon': applied_coupon,
+        'coupon_message': coupon_message,
         'free_shipping': shipping == Decimal('0')
     })
+
+@csrf_exempt
+def payment_handler(request):
+    if request.method == 'POST':
+        try:
+            payment_id = request.POST.get('razorpay_payment_id', '')
+            razorpay_order_id = request.POST.get('razorpay_order_id', '')
+            signature = request.POST.get('razorpay_signature', '')
+
+            if not all([payment_id, razorpay_order_id, signature]):
+                return redirect('order_failed', message='Missing payment parameters')
+
+            params_dict = {
+                'razorpay_payment_id': payment_id,
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_signature': signature
+            }
+
+            # Verify the payment signature
+            client.utility.verify_payment_signature(params_dict)
+
+            # Payment was successful
+            order = Order.objects.get(razorpay_order_id=razorpay_order_id)
+            order.is_paid = True
+            order.status = 'Processing'
+            order.save()
+
+            return redirect('order_success', order_id=order.id)
+
+        except Order.DoesNotExist:
+            return redirect('order_failed', message='Invalid Order ID')
+        except SignatureVerificationError:
+            return redirect('order_failed', message='Invalid Payment Signature')
+        except Exception as e:
+            logger.error(f"Payment handler error: {str(e)}")
+            return redirect('order_failed', message=str(e))
+
+    return redirect('checkout')
+
+
 @csrf_exempt
 def payment_handler(request):
     if request.method == 'POST':

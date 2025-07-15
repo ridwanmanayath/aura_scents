@@ -10,162 +10,167 @@
 
 {% block content %}
 <section class="container mx-auto px-4 py-12">
-<h2 class="text-3xl font-playfair font-bold text-purple-800 mb-8 text-center">Checkout</h2>
-<form method="POST" action="{% url 'checkout' %}" id="checkoutForm">
-{% csrf_token %}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <h2 class="text-3xl font-playfair font-bold text-purple-800 mb-8 text-center">Checkout</h2>
+    <form method="POST" action="{% url 'checkout' %}" id="checkoutForm">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-<!-- Left: Items, Addresses, Payment -->
-<div class="lg:col-span-2 space-y-8">
+            <!-- Left: Items, Addresses, Payment -->
+            <div class="lg:col-span-2 space-y-8">
 
-<!-- Products -->
-<div class="space-y-4">
-<h3 class="text-xl font-semibold text-gray-800 mb-2">Products</h3>
-{% for item in cart_items %}
-<div class="bg-white p-4 rounded-lg shadow flex items-center justify-between">
-<div class="flex items-center space-x-4">
-<img src="{{ item.item.product.images.first.image.url }}" alt="{{ item.item.product.name }}" class="w-16 h-16 rounded border" />
-<div>
-<p class="font-medium text-gray-800">
-{{ item.item.product.name }}
-{% if item.item.variant %}
-- {{ item.item.variant.volume }}{{ item.item.variant.unit }}
-{% endif %}
-</p>
-<div class="text-sm">
-{% if item.best_offer %}
-<p class="text-pink-600 font-bold">₹{{ item.discounted_price|floatformat:2 }}</p>
-<p class="text-gray-500 line-through">₹{{ item.original_price|floatformat:2 }}</p>
-<p class="text-xs text-green-600">{{ item.best_offer.discount_percentage }}% Off ({{ item.best_offer.get_offer_type_display }})</p>
-{% else %}
-<p class="text-pink-600 font-bold">₹{{ item.original_price|floatformat:2 }}</p>
-{% endif %}
-<p class="text-sm text-gray-500">Qty: {{ item.item.quantity }}</p>
-</div>
-</div>
-</div>
-<p class="font-semibold text-gray-700">₹{{ item.subtotal|floatformat:2 }}</p>
-</div>
-{% endfor %}
-</div>
+                <!-- Products -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Products</h3>
+                    {% for item in cart_items %}
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <img src="{{ item.item.product.images.first.image.url }}" alt="{{ item.item.product.name }}" class="w-16 h-16 rounded border" />
+                            <div>
+                                <p class="font-medium text-gray-800">
+                                    {{ item.item.product.name }}
+                                    {% if item.item.variant %}
+                                    - {{ item.item.variant.volume }}{{ item.item.variant.unit }}
+                                    {% endif %}
+                                </p>
+                                <div class="text-sm">
+                                    {% if item.best_offer %}
+                                    <p class="text-pink-600 font-bold">₹{{ item.discounted_price|floatformat:2 }}</p>
+                                    <p class="text-gray-500 line-through">₹{{ item.original_price|floatformat:2 }}</p>
+                                    <p class="text-xs text-green-600">{{ item.best_offer.discount_percentage }}% Off ({{ item.best_offer.get_offer_type_display }})</p>
+                                    {% else %}
+                                    <p class="text-pink-600 font-bold">₹{{ item.original_price|floatformat:2 }}</p>
+                                    {% endif %}
+                                    <p class="text-sm text-gray-500">Qty: {{ item.item.quantity }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="font-semibold text-gray-700">₹{{ item.subtotal|floatformat:2 }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
 
-<!-- Addresses -->
-<div class="space-y-4" id="addressSection">
-<h3 class="text-xl font-semibold text-gray-800">Shipping Address</h3>
-<div class="flex flex-wrap gap-4" id="addressList">
-{% include 'store/includes/address_list.html' %}
-</div>
+                <!-- Addresses -->
+                <div class="space-y-4" id="addressSection">
+                    <h3 class="text-xl font-semibold text-gray-800">Shipping Address</h3>
+                    <div class="flex flex-wrap gap-4" id="addressList">
+                        {% include 'store/includes/address_list.html' %}
+                    </div>
 
-<!-- Add Address Link - Single instance above payment method -->
-<div class="mt-2">
-<button type="button" onclick="openAddAddressModal()" class="inline-block text-purple-600 hover:text-purple-800 text-sm font-medium">
-+ Add New Address
-</button>
-</div>
-</div>
+                    <!-- Add Address Link -->
+                    <div class="mt-2">
+                        <button type="button" onclick="openAddAddressModal()" class="inline-block text-purple-600 hover:text-purple-800 text-sm font-medium">
+                            + Add New Address
+                        </button>
+                    </div>
+                </div>
 
-<!-- Payment Method -->
-<div class="space-y-4">
-<h3 class="text-xl font-semibold text-gray-800">Payment Method</h3>
-<label class="flex items-center space-x-2">
-<input type="radio" name="payment" value="COD" class="text-purple-600" checked />
-<span class="text-sm text-gray-700">Cash on Delivery</span>
-</label>
-<label class="flex items-center space-x-2">
-<input type="radio" name="payment" value="Razorpay" class="text-purple-600" />
-<span class="text-sm text-gray-700">Razorpay</span>
-</label>
-</div>
+                <!-- Payment Method -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Payment Method</h3>
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="payment" value="COD" class="text-purple-600" checked />
+                        <span class="text-sm text-gray-700">Cash on Delivery</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="radio" name="payment" value="Razorpay" class="text-purple-600" />
+                        <span class="text-sm text-gray-700">Razorpay</span>
+                    </label>
+                </div>
 
-</div>
+            </div>
 
-<!-- Right: Order Summary -->
-<div class="space-y-6">
-<!-- Order Summary -->
-<div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-<h3 class="text-xl font-semibold text-gray-800 mb-4">Order Summary</h3>
+            <!-- Right: Order Summary and Coupons -->
+            <div class="space-y-6">
+                <!-- Order Summary -->
+                <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Order Summary</h3>
 
-<!-- Item breakdown -->
-<div class="space-y-2 text-sm text-gray-600 mb-4 pb-4 border-b border-gray-200">
-{% for item in cart_items %}
-<div class="flex justify-between">
-<span>
-{{ item.item.product.name }}{% if item.item.variant %} ({{ item.item.variant.volume }}{{ item.item.variant.unit }}){% endif %} × {{ item.item.quantity }}
-</span>
-<span>₹{{ item.subtotal|floatformat:2 }}</span>
-</div>
-{% endfor %}
-</div>
+                    <!-- Item breakdown -->
+                    <div class="space-y-2 text-sm text-gray-600 mb-4 pb-4 border-b border-gray-200">
+                        {% for item in cart_items %}
+                        <div class="flex justify-between">
+                            <span>
+                                {{ item.item.product.name }}{% if item.item.variant %} ({{ item.item.variant.volume }}{{ item.item.variant.unit }}){% endif %} × {{ item.item.quantity }}
+                            </span>
+                            <span>₹{{ item.subtotal|floatformat:2 }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
 
-<!-- Summary totals -->
-<div class="space-y-2 text-sm text-gray-700" id="orderSummary">
-<div class="flex justify-between"><span>Subtotal</span><span id="subtotalAmount">₹{{ subtotal|floatformat:2 }}</span></div>
-<div class="flex justify-between"><span>Tax (5%)</span><span id="taxAmount">₹{{ tax|floatformat:2 }}</span></div>
-<div class="flex justify-between"><span>Shipping</span><span id="shippingAmount">₹{{ shipping|floatformat:2 }}</span></div>
-{% if discount > 0 %}
-<div class="flex justify-between text-green-600" id="discountRow"><span>Discount</span><span id="discountAmount">-₹{{ discount|floatformat:2 }}</span></div>
-{% endif %}
-<div class="border-t border-gray-300 my-2"></div>
-<div class="flex justify-between font-semibold text-gray-900 text-base"><span>Total</span><span id="totalAmount">₹{{ total|floatformat:2 }}</span></div>
-</div>
+                    <!-- Summary totals -->
+                    <div class="space-y-2 text-sm text-gray-700" id="orderSummary">
+                        <div class="flex justify-between"><span>Subtotal</span><span id="subtotalAmount">₹{{ subtotal|floatformat:2 }}</span></div>
+                        <div class="flex justify-between"><span>Tax (5%)</span><span id="taxAmount">₹{{ tax|floatformat:2 }}</span></div>
+                        <div class="flex justify-between"><span>Shipping</span><span id="shippingAmount">₹{{ shipping|floatformat:2 }}</span></div>
+                        {% if discount > 0 %}
+                        <div class="flex justify-between text-green-600" id="discountRow"><span>Discount</span><span id="discountAmount">-₹{{ discount|floatformat:2 }}</span></div>
+                        {% endif %}
+                        <div class="border-t border-gray-300 my-2"></div>
+                        <div class="flex justify-between font-semibold text-gray-900 text-base"><span>Total</span><span id="totalAmount">₹{{ total|floatformat:2 }}</span></div>
+                    </div>
 
-<!-- Place Order Button -->
-<button type="submit" name="place_order" class="w-full mt-6 bg-pink-500 hover:bg-pink-600 text-white py-3 px-4 rounded-md text-sm font-semibold transition-colors" {% if not cart_items %}disabled title="Cart is empty"{% endif %}>
-Place Order
-</button>
-</div>
+                    <!-- Place Order Button -->
+                    <button type="submit" name="place_order" class="w-full mt-6 bg-pink-500 hover:bg-pink-600 text-white py-3 px-4 rounded-md text-sm font-semibold transition-colors" {% if not cart_items %}disabled title="Cart is empty"{% endif %}>
+                        Place Order
+                    </button>
+                </div>
 
-<!-- Coupon Section - Separate container -->
-{% if coupon_code %}
-<div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-<h3 class="text-lg font-semibold text-gray-800 mb-4">Coupon Code</h3>
-<div id="couponSection">
-{% if not coupon_applied %}
-<div class="space-y-3">
-<div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
-<div>
-<p class="text-sm font-medium text-green-800">{{ coupon_message }}</p>
-<p class="text-xs text-green-600">Code: {{ coupon_code }}</p>
-</div>
-<button type="button" onclick="applyCoupon('{{ coupon_code }}')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors">
-APPLY
-</button>
-</div>
-</div>
-{% else %}
-<div class="space-y-3">
-<div class="flex items-center justify-between p-3 bg-green-100 border border-green-300 rounded-md">
-<div>
-<p class="text-sm font-medium text-green-800">{{ coupon_message }} Applied</p>
-<p class="text-xs text-green-600">Code: {{ coupon_code }}</p>
-</div>
-<div class="text-green-600">
-<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-</svg>
-</div>
-</div>
-</div>
-{% endif %}
-</div>
-</div>
-{% endif %}
-</div>
+                <!-- Coupon Section -->
+                <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Apply Coupon</h3>
+                    <div id="couponSection">
+                        {% if coupon_applied %}
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-green-100 border border-green-300 rounded-md">
+                                <div>
+                                    <p class="text-sm font-bold text-green-800">{{ applied_coupon.code }}</p>
+                                    <p class="text-sm text-green-600">{{ coupon_message }}</p>
+                                </div>
+                                <div class="text-green-600">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="space-y-3">
+                            {% for coupon in valid_coupons %}
+                            <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                                <div>
+                                    <p class="text-sm font-bold text-green-800">{{ coupon.code }}</p>
+                                    <p class="text-sm text-green-600">{{ coupon.description }}</p>
+                                </div>
+                                <button type="button" onclick="applyCoupon('{{ coupon.code }}')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors">
+                                    APPLY
+                                </button>
+                            </div>
+                            {% empty %}
+                            <p class="text-sm text-gray-600">No coupons available at this time.</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
-</div>
-</form>
+        </div>
+        {% if coupon_applied %}
+        <input type="hidden" name="coupon_code" value="{{ applied_coupon.code }}">
+        {% endif %}
+    </form>
 </section>
 
 <!-- Address Modal -->
 <div id="addressModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-<div class="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 relative max-h-[90vh] overflow-hidden">
-<button type="button" onclick="closeAddressModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10">
-<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-</svg>
-</button>
-<div id="addressModalContent" class="overflow-y-auto max-h-[90vh]"></div>
-</div>
+    <div class="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 relative max-h-[90vh] overflow-hidden">
+        <button type="button" onclick="closeAddressModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <div id="addressModalContent" class="overflow-y-auto max-h-[90vh]"></div>
+    </div>
 </div>
 
 <!-- Include SweetAlert2 -->
@@ -176,435 +181,435 @@ APPLY
 let razorpayLoaded = false;
 
 document.getElementById('razorpay-checkout-script').addEventListener('load', function() {
-console.log('Razorpay SDK loaded successfully');
-razorpayLoaded = true;
+    console.log('Razorpay SDK loaded successfully');
+    razorpayLoaded = true;
 });
 
 document.getElementById('razorpay-checkout-script').addEventListener('error', function() {
-console.error('Failed to load Razorpay SDK from CDN. Attempting fallback...');
-// Remove the existing script to avoid conflicts
-const existingScript = document.getElementById('razorpay-checkout-script');
-if (existingScript) {
-existingScript.remove();
-}
-// Load local fallback script
-const script = document.createElement('script');
-script.id = 'razorpay-checkout-script';
-script.src = "{% static 'js/razorpay-checkout.js' %}";
-script.async = true;
-script.defer = true;
-script.onload = function() {
-console.log('Local Razorpay SDK loaded successfully');
-razorpayLoaded = true;
-};
-script.onerror = function() {
-console.error('Failed to load local Razorpay SDK');
-razorpayLoaded = false;
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'Unable to load Razorpay payment system. Please try again or use Cash on Delivery.',
-});
-};
-document.head.appendChild(script);
+    console.error('Failed to load Razorpay SDK from CDN. Attempting fallback...');
+    const existingScript = document.getElementById('razorpay-checkout-script');
+    if (existingScript) {
+        existingScript.remove();
+    }
+    const script = document.createElement('script');
+    script.id = 'razorpay-checkout-script';
+    script.src = "{% static 'js/razorpay-checkout.js' %}";
+    script.async = true;
+    script.defer = true;
+    script.onload = function() {
+        console.log('Local Razorpay SDK loaded successfully');
+        razorpayLoaded = true;
+    };
+    script.onerror = function() {
+        console.error('Failed to load local Razorpay SDK');
+        razorpayLoaded = false;
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Unable to load Razorpay payment system. Please try again or use Cash on Delivery.',
+        });
+    };
+    document.head.appendChild(script);
 });
 
 // Address Modal Functions
 function openAddAddressModal() {
-fetch('{% url "checkout" %}?get_address_form=1', {
-headers: {
-'X-Requested-With': 'XMLHttpRequest'
-}
-})
-.then(response => response.json())
-.then(data => {
-document.getElementById('addressModalContent').innerHTML = data.html;
-document.getElementById('addressModal').classList.remove('hidden');
-})
-.catch(error => {
-console.error('Error:', error);
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'error',
-title: 'Error loading address form',
-showConfirmButton: false,
-timer: 3000
-});
-});
+    fetch('{% url "checkout" %}?get_address_form=1', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('addressModalContent').innerHTML = data.html;
+        document.getElementById('addressModal').classList.remove('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: 'Error loading address form',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    });
 }
 
 function openEditAddressModal(addressId) {
-event.preventDefault();
-event.stopPropagation();
-fetch(`{% url "checkout" %}?get_address_form=1&address_id=${addressId}`, {
-headers: {
-'X-Requested-With': 'XMLHttpRequest'
-}
-})
-.then(response => response.json())
-.then(data => {
-document.getElementById('addressModalContent').innerHTML = data.html;
-document.getElementById('addressModal').classList.remove('hidden');
-})
-.catch(error => {
-console.error('Error:', error);
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'error',
-title: 'Error loading address form',
-showConfirmButton: false,
-timer: 3000
-});
-});
+    event.preventDefault();
+    event.stopPropagation();
+    fetch(`{% url "checkout" %}?get_address_form=1&address_id=${addressId}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('addressModalContent').innerHTML = data.html;
+        document.getElementById('addressModal').classList.remove('hidden');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: 'Error loading address form',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    });
 }
 
 function closeAddressModal() {
-document.getElementById('addressModal').classList.add('hidden');
-document.getElementById('addressModalContent').innerHTML = '';
+    document.getElementById('addressModal').classList.add('hidden');
+    document.getElementById('addressModalContent').innerHTML = '';
 }
 
 function handleAddressFormSubmission(form) {
-event.preventDefault();
-const formData = new FormData(form);
-const submitButton = form.querySelector('button[type="submit"]');
-const originalButtonText = submitButton.innerHTML;
-submitButton.innerHTML = 'Saving...';
-submitButton.disabled = true;
+    event.preventDefault();
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.innerHTML = 'Saving...';
+    submitButton.disabled = true;
 
-fetch('{% url "checkout" %}', {
-method: 'POST',
-body: formData,
-headers: {
-'X-Requested-With': 'XMLHttpRequest'
-}
-})
-.then(response => response.json())
-.then(data => {
-if (data.success) {
-document.getElementById('addressList').innerHTML = data.html;
-closeAddressModal();
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'success',
-title: data.message,
-showConfirmButton: false,
-timer: 3000
-});
-} else {
-document.getElementById('addressModalContent').innerHTML = data.html;
-}
-})
-.catch(error => {
-console.error('Error:', error);
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'error',
-title: 'Error saving address',
-showConfirmButton: false,
-timer: 3000
-});
-})
-.finally(() => {
-submitButton.innerHTML = originalButtonText;
-submitButton.disabled = false;
-});
-return false;
+    fetch('{% url "checkout" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('addressList').innerHTML = data.html;
+            closeAddressModal();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: data.message,
+                showConfirmButton: false,
+                timer: 3000
+            });
+        } else {
+            document.getElementById('addressModalContent').innerHTML = data.html;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: 'Error saving address',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    })
+    .finally(() => {
+        submitButton.innerHTML = originalButtonText;
+        submitButton.disabled = false;
+    });
+    return false;
 }
 
 function applyCoupon(couponCode) {
-const formData = new FormData();
-formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-formData.append('coupon_code', couponCode);
-formData.append('apply_coupon', '1');
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('coupon_code', couponCode);
+    formData.append('apply_coupon', '1');
 
-const couponButton = event.target;
-const originalContent = couponButton.innerHTML;
-couponButton.innerHTML = '<span>Applying...</span>';
-couponButton.disabled = true;
+    const couponButton = event.target;
+    const originalContent = couponButton.innerHTML;
+    couponButton.innerHTML = '<span>Applying...</span>';
+    couponButton.disabled = true;
 
-fetch('{% url "checkout" %}', {
-method: 'POST',
-body: formData,
-headers: {
-'X-Requested-With': 'XMLHttpRequest'
-}
-})
-.then(response => {
-if (!response.ok) {
-throw new Error(`HTTP error! status: ${response.status}`);
-}
-return response.json();
-})
-.then(data => {
-if (data.success) {
-updateOrderSummary(data);
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'success',
-title: data.message,
-showConfirmButton: false,
-timer: 3000
-});
-updateCouponSection(true, '{{ coupon_message }}', '{{ coupon_code }}');
-} else {
-throw new Error(data.message || 'Failed to apply coupon');
-}
-})
-.catch(error => {
-console.error('Error:', error);
-couponButton.innerHTML = originalContent;
-couponButton.disabled = false;
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'error',
-title: error.message || 'Failed to apply coupon',
-showConfirmButton: false,
-timer: 3000
-});
-});
+    fetch('{% url "checkout" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            updateOrderSummary(data);
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: data.message,
+                showConfirmButton: false,
+                timer: 3000
+            });
+            updateCouponSection(true, data.message, couponCode);
+            // Add hidden input for coupon code
+            const form = document.getElementById('checkoutForm');
+            let couponInput = form.querySelector('input[name="coupon_code"]');
+            if (!couponInput) {
+                couponInput = document.createElement('input');
+                couponInput.type = 'hidden';
+                couponInput.name = 'coupon_code';
+                form.appendChild(couponInput);
+            }
+            couponInput.value = couponCode;
+        } else {
+            throw new Error(data.message || 'Failed to apply coupon');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        couponButton.innerHTML = originalContent;
+        couponButton.disabled = false;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: error.message || 'Failed to apply coupon',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    });
 }
 
 function updateOrderSummary(data) {
-if (!document.getElementById('discountRow')) {
-const shippingRow = document.getElementById('shippingAmount').parentElement;
-const discountRow = document.createElement('div');
-discountRow.className = 'flex justify-between text-green-600';
-discountRow.id = 'discountRow';
-discountRow.innerHTML = '<span>Discount</span><span id="discountAmount">-₹' + data.discount + '</span>';
-shippingRow.parentNode.insertBefore(discountRow, shippingRow.nextSibling);
-} else {
-document.getElementById('discountAmount').textContent = '-₹' + data.discount;
-}
-document.getElementById('totalAmount').textContent = '₹' + data.total;
+    if (!document.getElementById('discountRow')) {
+        const shippingRow = document.getElementById('shippingAmount').parentElement;
+        const discountRow = document.createElement('div');
+        discountRow.className = 'flex justify-between text-green-600';
+        discountRow.id = 'discountRow';
+        discountRow.innerHTML = '<span>Discount</span><span id="discountAmount">-₹' + data.discount + '</span>';
+        shippingRow.parentNode.insertBefore(discountRow, shippingRow.nextSibling);
+    } else {
+        document.getElementById('discountAmount').textContent = '-₹' + data.discount;
+    }
+    document.getElementById('totalAmount').textContent = '₹' + data.total;
 }
 
 function updateCouponSection(applied, message, couponCode) {
-const couponSection = document.getElementById('couponSection');
-if (applied) {
-couponSection.innerHTML = `
-<div class="space-y-3">
-<div class="flex items-center justify-between p-3 bg-green-100 border border-green-300 rounded-md">
-<div>
-<p class="text-sm font-medium text-green-800">${message} Applied</p>
-<p class="text-xs text-green-600">Code: ${couponCode}</p>
-</div>
-<div class="text-green-600">
-<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-</svg>
-</div>
-</div>
-</div>
-`;
-}
+    const couponSection = document.getElementById('couponSection');
+    if (applied) {
+        couponSection.innerHTML = `
+            <div class="space-y-3">
+                <div class="flex items-center justify-between p-3 bg-green-100 border border-green-300 rounded-md">
+                    <div>
+                        <p class="text-sm font-bold text-green-800">${couponCode}</p>
+                        <p class="text-sm text-green-600">${message}</p>
+                    </div>
+                    <div class="text-green-600">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 }
 
 function openRazorpayModal(options) {
-// Check if Razorpay is available
-if (typeof Razorpay === 'undefined' || !razorpayLoaded) {
-console.error('Razorpay SDK not loaded');
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'Unable to load Razorpay payment system. Please try again or use Cash on Delivery.',
-});
-return;
-}
-// Ensure handler is a function for Razorpay
-options.handler = function(response) {
-// Handle successful payment
-fetch('{% url "payment_handler" %}', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json',
-'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-'X-Requested-With': 'XMLHttpRequest'
-},
-body: JSON.stringify({
-razorpay_payment_id: response.razorpay_payment_id,
-razorpay_order_id: response.razorpay_order_id,
-razorpay_signature: response.razorpay_signature
-})
-})
-.then(response => response.json())
-.then(data => {
-if (data.success) {
-window.location.href = data.redirect_url;
-} else {
-Swal.fire({
-icon: 'error',
-title: 'Payment Failed',
-text: data.message || 'Payment verification failed. Please try again.',
-});
-}
-})
-.catch(error => {
-console.error('Payment handler error:', error);
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'An error occurred during payment processing. Please try again.',
-});
-});
-};
-// Open Razorpay modal
-try {
-const rzp = new Razorpay(options);
-rzp.on('payment.failed', function(response) {
-Swal.fire({
-icon: 'error',
-title: 'Payment Failed',
-text: response.error.description || 'Your payment could not be processed. Please try again.',
-});
-});
-rzp.open();
-} catch (error) {
-console.error('Razorpay modal error:', error);
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'Unable to initiate Razorpay payment. Please try again.',
-});
-}
+    if (typeof Razorpay === 'undefined' || !razorpayLoaded) {
+        console.error('Razorpay SDK not loaded');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Unable to load Razorpay payment system. Please try again or use Cash on Delivery.',
+        });
+        return;
+    }
+    options.handler = function(response) {
+        fetch('{% url "payment_handler" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.redirect_url;
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Payment Failed',
+                    text: data.message || 'Payment verification failed. Please try again.',
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Payment handler error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred during payment processing. Please try again.',
+            });
+        });
+    };
+    try {
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(response) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Payment Failed',
+                text: response.error.description || 'Your payment could not be processed. Please try again.',
+            });
+        });
+        rzp.open();
+    } catch (error) {
+        console.error('Razorpay modal error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Unable to initiate Razorpay payment. Please try again.',
+        });
+    }
 }
 
 document.getElementById('checkoutForm').addEventListener('submit', function(e) {
-e.preventDefault();
-const form = e.target;
-const selectedAddress = document.querySelector('input[name="selected_address"]:checked');
-const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    e.preventDefault();
+    const form = e.target;
+    const selectedAddress = document.querySelector('input[name="selected_address"]:checked');
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
-// Validate address selection
-if (!selectedAddress) {
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'Please select a shipping address',
-});
-return;
-}
+    if (!selectedAddress) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Please select a shipping address',
+        });
+        return;
+    }
 
-// Show loading state
-const submitButton = form.querySelector('button[name="place_order"]');
-const originalButtonText = submitButton.innerHTML;
-submitButton.innerHTML = 'Processing...';
-submitButton.disabled = true;
+    const submitButton = form.querySelector('button[name="place_order"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.innerHTML = 'Processing...';
+    submitButton.disabled = true;
 
-// Prepare FormData
-const formData = new FormData(form);
-formData.append('place_order', '1');
-for (let [key, value] of formData.entries()) {
-console.log(`FormData: ${key} = ${value}`);
-}
+    const formData = new FormData(form);
+    formData.append('place_order', '1');
+    for (let [key, value] of formData.entries()) {
+        console.log(`FormData: ${key} = ${value}`);
+    }
 
-fetch('{% url "checkout" %}', {
-method: 'POST',
-body: formData,
-headers: {
-'X-Requested-With': 'XMLHttpRequest'
-}
-})
-.then(response => {
-console.log('Response status:', response.status);
-console.log('Response headers:', response.headers);
-return response.text().then(text => {
-console.log('Response text:', text);
-if (!response.ok) {
-try {
-const data = JSON.parse(text);
-throw new Error(data.error || 'Network response was not ok');
-} catch (e) {
-throw new Error('Network response was not ok: ' + text);
-}
-}
-return JSON.parse(text);
-});
-})
-.then(data => {
-if (data.redirect_url) {
-if (paymentMethod === 'COD' || !data.razorpay) {
-window.location.href = data.redirect_url;
-} else if (data.razorpay_options) {
-// Retry mechanism if Razorpay SDK isn't loaded
-const maxRetries = 3;
-let retryCount = 0;
+    fetch('{% url "checkout" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        return response.text().then(text => {
+            console.log('Response text:', text);
+            if (!response.ok) {
+                try {
+                    const data = JSON.parse(text);
+                    throw new Error(data.error || 'Network response was not ok');
+                } catch (e) {
+                    throw new Error('Network response was not ok: ' + text);
+                }
+            }
+            return JSON.parse(text);
+        });
+    })
+    .then(data => {
+        if (data.redirect_url) {
+            if (paymentMethod === 'COD' || !data.razorpay) {
+                window.location.href = data.redirect_url;
+            } else if (data.razorpay_options) {
+                const maxRetries = 3;
+                let retryCount = 0;
 
-function attemptRazorpay() {
-if (razorpayLoaded && typeof Razorpay !== 'undefined') {
-openRazorpayModal(data.razorpay_options);
-} else if (retryCount < maxRetries) {
-retryCount++;
-console.log(`Retrying Razorpay modal open, attempt ${retryCount}`);
-setTimeout(attemptRazorpay, 1000);
-} else {
-console.error('Razorpay SDK failed to load after retries');
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: 'Unable to load Razorpay payment system after multiple attempts. Please try again or use Cash on Delivery.',
-});
-submitButton.innerHTML = originalButtonText;
-submitButton.disabled = false;
-}
-}
-attemptRazorpay();
-}
-} else {
-throw new Error('No redirect URL provided');
-}
-})
-.catch(error => {
-console.error('Error:', error);
-submitButton.innerHTML = originalButtonText;
-submitButton.disabled = false;
-Swal.fire({
-icon: 'error',
-title: 'Error',
-text: error.message || 'Failed to process order',
-});
-});
+                function attemptRazorpay() {
+                    if (razorpayLoaded && typeof Razorpay !== 'undefined') {
+                        openRazorpayModal(data.razorpay_options);
+                    } else if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`Retrying Razorpay modal open, attempt ${retryCount}`);
+                        setTimeout(attemptRazorpay, 1000);
+                    } else {
+                        console.error('Razorpay SDK failed to load after retries');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Unable to load Razorpay payment system after multiple attempts. Please try again or use Cash on Delivery.',
+                        });
+                        submitButton.innerHTML = originalButtonText;
+                        submitButton.disabled = false;
+                    }
+                }
+                attemptRazorpay();
+            }
+        } else {
+            throw new Error('No redirect URL provided');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        submitButton.innerHTML = originalButtonText;
+        submitButton.disabled = false;
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'Failed to process order',
+        });
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-{% if free_shipping %}
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'success',
-title: "You've qualified for free shipping!",
-showConfirmButton: false,
-timer: 3000
-});
-{% endif %}
+    {% if free_shipping %}
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: "You've qualified for free shipping!",
+        showConfirmButton: false,
+        timer: 3000
+    });
+    {% endif %}
 
-{% if coupon_applied %}
-Swal.fire({
-toast: true,
-position: 'top-end',
-icon: 'success',
-title: 'Coupon applied successfully!',
-showConfirmButton: false,
-timer: 3000
-});
-{% endif %}
+    {% if coupon_applied %}
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Coupon applied successfully!',
+        showConfirmButton: false,
+        timer: 3000
+    });
+    {% endif %}
 
-document.getElementById('addressModal').addEventListener('click', function(e) {
-if (e.target === this) {
-closeAddressModal();
-}
-});
+    document.getElementById('addressModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddressModal();
+        }
+    });
 
-document.addEventListener('keydown', function(e) {
-if (e.key === 'Escape' && !document.getElementById('addressModal').classList.contains('hidden')) {
-closeAddressModal();
-}
-});
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !document.getElementById('addressModal').classList.contains('hidden')) {
+            closeAddressModal();
+        }
+    });
 });
 </script>
 {% endblock %}
