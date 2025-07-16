@@ -1583,19 +1583,24 @@ def checkout(request):
     cart = get_object_or_404(Cart, user=request.user)
     cart_items = cart.items.select_related('product', 'variant').prefetch_related('product__images')
 
-    # Filter out blocked/deleted products and categories
     valid_items = []
     cart_data = []
     subtotal = Decimal('0.00')
+
     for item in cart_items:
-        if (not item.product.is_blocked and not item.product.is_deleted and
-                not item.product.category.is_blocked and not item.product.category.is_deleted):
-            # Get price and offer
+        if (
+            not item.product.is_blocked and
+            not item.product.is_deleted and
+            not item.product.category.is_blocked and
+            not item.product.category.is_deleted
+        ):
             original_price = item.variant.price if item.variant else item.product.price
             best_offer = get_best_offer_for_product(item.product)
             discounted_price = original_price
             if best_offer:
-                discounted_price = original_price * (Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
+                discounted_price = original_price * (
+                    Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0'))
+                )
             cart_data.append({
                 'item': item,
                 'original_price': original_price,
@@ -1606,12 +1611,10 @@ def checkout(request):
             subtotal += discounted_price * Decimal(str(item.quantity))
             valid_items.append(item)
 
-    # If any invalid items were found, update the cart
     if len(valid_items) != len(cart_items):
         cart.items.exclude(pk__in=[item.pk for item in valid_items]).delete()
         cart_items = valid_items
 
-    # Calculate order totals
     tax = subtotal * Decimal('0.05')
     shipping = Decimal('0.00') if subtotal > Decimal('1000') else Decimal('350.00')
     discount = Decimal('0.00')
@@ -1619,19 +1622,32 @@ def checkout(request):
     applied_coupon = None
     coupon_message = ''
 
-    # Get referral coupons
-    referrals = Referral.objects.filter(referred_user=request.user)
-    valid_referral_coupons = Coupon.objects.filter(
-        referrer_rewards__referrer=request.user,
-        is_active=True,
-        valid_from__lte=timezone.now(),
-        valid_until__gte=timezone.now(),
-        minimum_order_amount__lte=subtotal
-    ).filter(
-        models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
-    )
+    referral = Referral.objects.filter(referred_user=request.user).first()
+    is_referred_user = bool(referral)
+    valid_referral_coupon = None
+    valid_welcome_coupon = None
 
-    # Get other valid coupons
+    if not is_referred_user:
+        valid_referral_coupon = Coupon.objects.filter(
+            referrer_rewards__referrer=request.user,
+            is_active=True,
+            valid_from__lte=timezone.now(),
+            valid_until__gte=timezone.now(),
+            minimum_order_amount__lte=subtotal
+        ).filter(
+            models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
+        ).first()
+    else:
+        valid_welcome_coupon = Coupon.objects.filter(
+            referred_rewards__referred_user=request.user,
+            is_active=True,
+            valid_from__lte=timezone.now(),
+            valid_until__gte=timezone.now(),
+            minimum_order_amount__lte=subtotal
+        ).filter(
+            models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
+        ).first()
+
     valid_coupons = Coupon.objects.filter(
         is_active=True,
         valid_from__lte=timezone.now(),
@@ -1640,21 +1656,15 @@ def checkout(request):
     ).filter(
         models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
     ).exclude(
-        pk__in=valid_referral_coupons.values_list('pk', flat=True)
+        pk__in=Referral.objects.values_list('referrer_coupon__pk', flat=True)
     ).exclude(
-        pk__in=Referral.objects.filter(referred_user=request.user).values_list('referred_coupon__pk', flat=True)
+        pk__in=Referral.objects.values_list('referred_coupon__pk', flat=True)
     )
 
-    # Handle POST actions
     if request.method == 'POST':
-        # Handle address form submission
         if 'submit_address_form' in request.POST:
             address_id = request.POST.get('address_id')
-            if address_id:
-                address = get_object_or_404(Address, id=address_id, user=request.user)
-                form = AddressForm(request.POST, instance=address)
-            else:
-                form = AddressForm(request.POST)
+            form = AddressForm(request.POST, instance=get_object_or_404(Address, id=address_id, user=request.user)) if address_id else AddressForm(request.POST)
 
             if form.is_valid():
                 address = form.save(commit=False)
@@ -1662,72 +1672,57 @@ def checkout(request):
                 address.save()
 
                 addresses = Address.objects.filter(user=request.user)
-                html = render_to_string('store/includes/address_list.html', {
-                    'addresses': addresses
-                }, request=request)
-
-                return JsonResponse({
-                    'success': True,
-                    'html': html,
-                    'message': 'Address saved successfully!'
-                })
+                html = render_to_string('store/includes/address_list.html', {'addresses': addresses}, request=request)
+                return JsonResponse({'success': True, 'html': html, 'message': 'Address saved successfully!'})
             else:
-                # Return form with errors
                 title = 'Edit Address' if address_id else 'Add New Address'
-                html = render_to_string('store/includes/address_modal_form.html', {
-                    'form': form,
-                    'title': title
-                }, request=request)
+                html = render_to_string('store/includes/address_modal_form.html', {'form': form, 'title': title}, request=request)
                 return JsonResponse({'success': False, 'html': html})
 
-        # If user applies coupon
         elif 'apply_coupon' in request.POST:
             coupon_code = request.POST.get('coupon_code', '').strip()
             try:
                 coupon = Coupon.objects.get(code=coupon_code)
-                if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
-                    discount = coupon.apply_discount(subtotal)
-                    coupon_applied = True
-                    applied_coupon = coupon
-                    coupon_message = f"{coupon.description} ({coupon.code})"
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({
-                            'success': True,
-                            'discount': str(discount),
-                            'total': str(subtotal + tax + shipping - discount),
-                            'coupon_applied': True,
-                            'message': 'Coupon applied successfully!'
-                        })
-                    messages.success(request, 'Coupon applied successfully!')
-                    return redirect('checkout')
+                if (
+                    (is_referred_user and coupon == valid_welcome_coupon) or
+                    (not is_referred_user and coupon == valid_referral_coupon) or
+                    (coupon in valid_coupons)
+                ):
+                    if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
+                        discount = coupon.apply_discount(subtotal)
+                        coupon_applied = True
+                        applied_coupon = coupon
+                        coupon_message = f"Coupon applied: {coupon.code}"
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse({
+                                'success': True,
+                                'discount': str(discount),
+                                'total': str(subtotal + tax + shipping - discount),
+                                'coupon_applied': True,
+                                'message': 'Coupon applied successfully!'
+                            })
+                        messages.success(request, 'Coupon applied successfully!')
+                        return redirect('checkout')
+                    else:
+                        error_message = 'Coupon is invalid or not applicable for this order.'
                 else:
-                    error_message = 'Coupon is invalid or not applicable for this order.'
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({
-                            'success': False,
-                            'message': error_message
-                        }, status=400)
-                    messages.error(request, error_message)
-                    return redirect('checkout')
+                    error_message = 'This coupon is not available for your account.'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': error_message}, status=400)
+                messages.error(request, error_message)
+                return redirect('checkout')
             except Coupon.DoesNotExist:
                 error_message = 'Invalid coupon code.'
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': error_message
-                    }, status=400)
+                    return JsonResponse({'success': False, 'message': error_message}, status=400)
                 messages.error(request, error_message)
                 return redirect('checkout')
 
-        # If user places order
         elif 'place_order' in request.POST:
             logger = logging.getLogger(__name__)
             logger.debug(f"Place Order POST data: {request.POST}")
-            logger.debug(f"Cart items: {len(cart_items)}")
-            logger.debug(f"Selected address: {request.POST.get('selected_address')}")
 
             if not cart_items:
-                logger.error("Cart is empty")
                 error_response = {'error': 'Your cart is empty'}
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse(error_response, status=400)
@@ -1738,14 +1733,25 @@ def checkout(request):
             if coupon_code:
                 try:
                     coupon = Coupon.objects.get(code=coupon_code)
-                    if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
-                        discount = coupon.apply_discount(subtotal)
-                        coupon_applied = True
-                        applied_coupon = coupon
-                        coupon.usage_count += 1
-                        coupon.save()
+                    if (
+                        (is_referred_user and coupon == valid_welcome_coupon) or
+                        (not is_referred_user and coupon == valid_referral_coupon) or
+                        (coupon in valid_coupons)
+                    ):
+                        if coupon.is_valid and subtotal >= coupon.minimum_order_amount:
+                            discount = coupon.apply_discount(subtotal)
+                            coupon_applied = True
+                            applied_coupon = coupon
+                            coupon.usage_count += 1
+                            coupon.save()
+                        else:
+                            error_response = {'error': 'Coupon is invalid or not applicable.'}
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return JsonResponse(error_response, status=400)
+                            messages.error(request, error_response['error'])
+                            return redirect('checkout')
                     else:
-                        error_response = {'error': 'Coupon is invalid or not applicable.'}
+                        error_response = {'error': 'This coupon is not available for your account.'}
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return JsonResponse(error_response, status=400)
                         messages.error(request, error_response['error'])
@@ -1759,7 +1765,6 @@ def checkout(request):
 
             address_id = request.POST.get('selected_address')
             if not address_id:
-                logger.error("No address selected")
                 error_response = {'error': 'Please select a shipping address'}
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse(error_response, status=400)
@@ -1769,18 +1774,17 @@ def checkout(request):
             address = get_object_or_404(Address, id=address_id, user=request.user)
             payment_method = request.POST.get('payment', 'COD')
 
-            # Check product availability before creating order
             for item in cart_items:
                 available_stock = item.variant.stock if item.variant else item.product.stock
                 if item.quantity > available_stock:
-                    logger.error(f"Insufficient stock for {item.product.name}: requested {item.quantity}, available {available_stock}")
-                    error_response = {'error': f'Sorry, {item.product.name} only has {available_stock} items available'}
+                    error_response = {
+                        'error': f'Sorry, {item.product.name} only has {available_stock} items available'
+                    }
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return JsonResponse(error_response, status=400)
                     messages.error(request, error_response['error'])
                     return redirect('checkout')
 
-            # Create the order
             order = Order.objects.create(
                 user=request.user,
                 address=address,
@@ -1788,42 +1792,33 @@ def checkout(request):
                 payment_method=payment_method
             )
 
-            # Create order items with discounted prices
             for item in cart_data:
                 OrderItem.objects.create(
                     order=order,
                     product=item['item'].product,
                     variant=item['item'].variant,
                     quantity=item['item'].quantity,
-                    price=item['discounted_price']  # Store discounted price
+                    price=item['discounted_price']
                 )
-
-                # Decrement stock
                 if item['item'].variant:
                     item['item'].variant.stock -= item['item'].quantity
                     item['item'].variant.save()
                 item['item'].product.stock -= item['item'].quantity
                 item['item'].product.save()
 
-            # Clear the cart
             cart.items.all().delete()
 
             if payment_method == 'COD':
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'redirect_url': reverse('order_success', args=[order.id])
-                    })
+                    return JsonResponse({'redirect_url': reverse('order_success', args=[order.id])})
                 messages.success(request, 'Order placed successfully!')
                 return redirect('order_success', order_id=order.id)
             else:
-                # Handle Razorpay payment
                 try:
                     razorpay_order = create_razorpay_order(
                         amount=float(order.total_amount),
                         receipt_id=order.id
                     )
-
-                    # Save Razorpay order ID to your order
                     order.razorpay_order_id = razorpay_order['id']
                     order.save()
 
@@ -1844,14 +1839,10 @@ def checkout(request):
                                     'email': request.user.email,
                                     'contact': order.address.mobile_number or '9999999999'
                                 },
-                                'theme': {
-                                    'color': '#7c3aed'
-                                }
+                                'theme': {'color': '#7c3aed'}
                             }
                         })
-
                     return redirect('payment_handler_init', order_id=order.id)
-
                 except Exception as e:
                     logger.error(f"Razorpay error: {str(e)}")
                     order.status = 'Failed'
@@ -1862,23 +1853,12 @@ def checkout(request):
                     messages.error(request, error_response['error'])
                     return redirect('checkout')
 
-    # Handle AJAX request for address form
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        if 'get_address_form' in request.GET:
-            address_id = request.GET.get('address_id')
-            if address_id:
-                address = get_object_or_404(Address, id=address_id, user=request.user)
-                form = AddressForm(instance=address)
-                title = 'Edit Address'
-            else:
-                form = AddressForm()
-                title = 'Add New Address'
-
-            html = render_to_string('store/includes/address_modal_form.html', {
-                'form': form,
-                'title': title
-            }, request=request)
-            return JsonResponse({'html': html})
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'get_address_form' in request.GET:
+        address_id = request.GET.get('address_id')
+        form = AddressForm(instance=get_object_or_404(Address, id=address_id, user=request.user)) if address_id else AddressForm()
+        title = 'Edit Address' if address_id else 'Add New Address'
+        html = render_to_string('store/includes/address_modal_form.html', {'form': form, 'title': title}, request=request)
+        return JsonResponse({'html': html})
 
     total = subtotal + tax + shipping - discount
 
@@ -1895,8 +1875,9 @@ def checkout(request):
         'applied_coupon': applied_coupon,
         'coupon_message': coupon_message,
         'free_shipping': shipping == Decimal('0'),
-        'referrals': referrals,
-        'valid_referral_coupons': valid_referral_coupons
+        'referral': referral,
+        'valid_referral_coupon': valid_referral_coupon,
+        'valid_welcome_coupon': valid_welcome_coupon,
     })
 
 @csrf_exempt
