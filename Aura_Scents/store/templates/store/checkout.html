@@ -135,6 +135,34 @@
                         </div>
                         {% else %}
                         <div class="space-y-3">
+                            <!-- Referral Coupons -->
+                            {% with referral=referrals|first %}
+                            {% if referral.referred_coupon.is_valid %}
+                            <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <div>
+                                    <p class="text-sm font-bold text-blue-800">{{ referral.referred_coupon.code }}</p>
+                                    <p class="text-sm text-blue-600">Welcome Coupon: {{ referral.referred_coupon.description }}</p>
+                                </div>
+                                <button type="button" onclick="applyCoupon('{{ referral.referred_coupon.code }}')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors">
+                                    APPLY
+                                </button>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+                            
+                            {% for coupon in valid_referral_coupons %}
+                            <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <div>
+                                    <p class="text-sm font-bold text-blue-800">{{ coupon.code }}</p>
+                                    <p class="text-sm text-blue-600">Referral Reward: {{ coupon.description }}</p>
+                                </div>
+                                <button type="button" onclick="applyCoupon('{{ coupon.code }}')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors">
+                                    APPLY
+                                </button>
+                            </div>
+                            {% endfor %}
+                            
+                            <!-- Other Valid Coupons -->
                             {% for coupon in valid_coupons %}
                             <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
                                 <div>
@@ -146,7 +174,9 @@
                                 </button>
                             </div>
                             {% empty %}
+                            {% if not referral.referred_coupon.is_valid and not valid_referral_coupons %}
                             <p class="text-sm text-gray-600">No coupons available at this time.</p>
+                            {% endif %}
                             {% endfor %}
                         </div>
                         {% endif %}

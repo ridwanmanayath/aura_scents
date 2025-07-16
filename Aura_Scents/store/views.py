@@ -364,22 +364,50 @@ def send_otp_email(user, otp_code):
 def user_register(request):
     if request.user.is_authenticated:
         return redirect('home_page')
-    
+
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
+            # Save the user without committing to generate a unique referral_code
             user = form.save(commit=False)
-            user.is_active = False  # Inactive until OTP is verified
-            user.save()
+            user.is_active = False
+            user.set_password(form.cleaned_data['password1'])
+            user.save()  # This triggers User.save to generate a unique referral_code
 
+            # Handle referral
+            referral_code = form.cleaned_data.get('referral_code')
+            if referral_code:
+                try:
+                    referrer = User.objects.get(referral_code=referral_code)
+                    referral = Referral.objects.create(
+                        referrer=referrer,
+                        referred_user=user
+                    )
+                    referral.create_referral_coupons()
+                    # Send email to referrer
+                    send_mail(
+                        subject="New Referral Reward!",
+                        message=(
+                            f"Congratulations! {user.email} used your referral code. "
+                            f"You've earned a 10% off coupon: {referral.referrer_coupon.code}"
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[referrer.email]
+                    )
+                except User.DoesNotExist:
+                    messages.warning(request, "Invalid referral code provided, but registration continued.")
+                    # Log this if needed, but allow registration to proceed
+
+            # Generate and send OTP
             otp_code = str(random.randint(100000, 999999))
             OTP.objects.create(user=user, otp_code=otp_code)
-            send_otp_email(user, otp_code)
+            send_otp_email(user, otp_code)  # Ensure this function is defined
             return redirect('otp_verify', user_id=user.id)
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
         form = RegistrationForm()
     return render(request, 'store/register_page.html', {'form': form})
-
 
 def otp_verify(request, user_id):
     user = User.objects.get(id=user_id)
@@ -1591,7 +1619,19 @@ def checkout(request):
     applied_coupon = None
     coupon_message = ''
 
-    # Get all valid coupons
+    # Get referral coupons
+    referrals = Referral.objects.filter(referred_user=request.user)
+    valid_referral_coupons = Coupon.objects.filter(
+        referrer_rewards__referrer=request.user,
+        is_active=True,
+        valid_from__lte=timezone.now(),
+        valid_until__gte=timezone.now(),
+        minimum_order_amount__lte=subtotal
+    ).filter(
+        models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
+    )
+
+    # Get other valid coupons
     valid_coupons = Coupon.objects.filter(
         is_active=True,
         valid_from__lte=timezone.now(),
@@ -1599,6 +1639,10 @@ def checkout(request):
         minimum_order_amount__lte=subtotal
     ).filter(
         models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
+    ).exclude(
+        pk__in=valid_referral_coupons.values_list('pk', flat=True)
+    ).exclude(
+        pk__in=Referral.objects.filter(referred_user=request.user).values_list('referred_coupon__pk', flat=True)
     )
 
     # Handle POST actions
@@ -1850,7 +1894,9 @@ def checkout(request):
         'coupon_applied': coupon_applied,
         'applied_coupon': applied_coupon,
         'coupon_message': coupon_message,
-        'free_shipping': shipping == Decimal('0')
+        'free_shipping': shipping == Decimal('0'),
+        'referrals': referrals,
+        'valid_referral_coupons': valid_referral_coupons
     })
 
 @csrf_exempt
@@ -1960,3 +2006,22 @@ def wallet_view(request):
         'wallet': wallet,
         'transactions': transactions
     })
+
+def referral_profile(request):
+    user = request.user
+    referrals = Referral.objects.filter(referrer=user)
+    total_referrals = referrals.count()
+    coupons = Coupon.objects.filter(referrer_rewards__referrer=user)
+    active_coupons_count = coupons.filter(is_active=True).count()  # Calculate active coupons count
+    
+    total_savings = sum(c.discount_value for c in coupons if c.usage_count > 0)
+    
+    context = {
+        'referral_code': user.referral_code,
+        'referrals': referrals,
+        'total_referrals': total_referrals,
+        'coupons': coupons,
+        'total_savings': total_savings,
+        'active_coupons_count': active_coupons_count,  # Add active coupons count to context
+    }
+    return render(request, 'store/referral_profile.html', context)

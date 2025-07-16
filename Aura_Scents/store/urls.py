@@ -59,6 +59,8 @@ urlpatterns = [
     path('payment-init/<int:order_id>/', views.payment_handler_init, name='payment_handler_init'),
 
     path('wallet/', views.wallet_view, name='wallet'),
+
+    path('referral/', views.referral_profile, name='referral_profile'),
     
     
 

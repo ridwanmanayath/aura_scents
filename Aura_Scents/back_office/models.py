@@ -10,6 +10,9 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 import re
 
+import random,string
+from django.conf import settings
+
 
 def user_profile_image_path(instance, filename):
     """Generate upload path for user profile images"""
@@ -21,31 +24,43 @@ class User(AbstractUser):
     is_blocked = models.BooleanField(default=False)
     email = models.EmailField(unique=True)
     profile_image = models.ImageField(
-        upload_to=user_profile_image_path, 
-        blank=True, 
+        upload_to=user_profile_image_path,
+        blank=True,
         null=True,
         help_text="Upload a profile image (JPG, JPEG, PNG only)"
     )
-
+    referral_code = models.CharField(max_length=10, unique=True, blank=True, null=True)
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         return self.email
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+
+    def generate_referral_code(self):
+        """Generate a unique 10-character referral code"""
+        characters = string.ascii_uppercase + string.digits
+        code = ''.join(random.choice(characters) for _ in range(10))
         
+        # Ensure uniqueness
+        while User.objects.filter(referral_code=code).exists():
+            code = ''.join(random.choice(characters) for _ in range(10))
+        return code
+
+    def save(self, *args, **kwargs):
+        # Generate referral code on first save if not exists
+        if not self.referral_code and not self.pk:
+            self.referral_code = self.generate_referral_code()
+        
+        super().save(*args, **kwargs)
+
         # Resize profile image if it exists
         if self.profile_image:
             img_path = self.profile_image.path
             if os.path.exists(img_path):
                 with Image.open(img_path) as img:
-                    # Convert to RGB if necessary (for PNG with transparency)
                     if img.mode in ("RGBA", "P"):
                         img = img.convert("RGB")
-                    
-                    # Resize to 400x400 pixels
                     max_size = (400, 400)
                     img.thumbnail(max_size, Image.Resampling.LANCZOS)
                     img.save(img_path, quality=85, optimize=True)
@@ -283,4 +298,65 @@ def get_best_offer_for_product(product):
     
     return best_offer
 
+class Referral(models.Model):
+    referrer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='referrals_made'
+    )
+    referred_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='referred_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    referrer_coupon = models.ForeignKey(
+        Coupon,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='referrer_rewards'
+    )
+    referred_coupon = models.ForeignKey(
+        Coupon,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='referred_rewards'
+    )
+
+    def create_referral_coupons(self):
+        """Create referral coupons for both referrer and referred user"""
+        # Coupon for referrer
+        referrer_coupon = Coupon.objects.create(
+            code=f"REF{self.referrer.referral_code[:6]}{random.randint(1000, 9999)}",
+            description=f"Referral reward for referring {self.referred_user.email}",
+            coupon_type='percentage',
+            discount_value=Decimal('10.00'),
+            minimum_order_amount=Decimal('500.00'),
+            valid_from=timezone.now(),
+            valid_until=timezone.now() + timezone.timedelta(days=30),
+            usage_limit=1,
+            is_active=True
+        )
+        
+        # Coupon for referred user
+        referred_coupon = Coupon.objects.create(
+            code=f"NEW{self.referred_user.referral_code[:6]}{random.randint(1000, 9999)}",
+            description=f"Welcome coupon for {self.referred_user.email}",
+            coupon_type='percentage',
+            discount_value=Decimal('15.00'),
+            minimum_order_amount=Decimal('500.00'),
+            valid_from=timezone.now(),
+            valid_until=timezone.now() + timezone.timedelta(days=30),
+            usage_limit=1,
+            is_active=True
+        )
+
+        self.referrer_coupon = referrer_coupon
+        self.referred_coupon = referred_coupon
+        self.save()
+
+    def __str__(self):
+        return f"{self.referrer.email} referred {self.referred_user.email}"
 
