@@ -331,22 +331,22 @@ class Referral(models.Model):
         referrer_coupon = Coupon.objects.create(
             code=f"REF{self.referrer.referral_code[:6]}{random.randint(1000, 9999)}",
             description=f"Referral reward for referring {self.referred_user.email}",
-            coupon_type='percentage',
-            discount_value=Decimal('10.00'),
-            minimum_order_amount=Decimal('500.00'),
+            coupon_type='fixed',
+            discount_value=Decimal('50.00'),
+            minimum_order_amount=Decimal('0.00'),
             valid_from=timezone.now(),
             valid_until=timezone.now() + timezone.timedelta(days=30),
             usage_limit=1,
             is_active=True
         )
-        
+
         # Coupon for referred user
         referred_coupon = Coupon.objects.create(
             code=f"NEW{self.referred_user.referral_code[:6]}{random.randint(1000, 9999)}",
             description=f"Welcome coupon for {self.referred_user.email}",
-            coupon_type='percentage',
-            discount_value=Decimal('15.00'),
-            minimum_order_amount=Decimal('500.00'),
+            coupon_type='fixed',
+            discount_value=Decimal('100.00'),
+            minimum_order_amount=Decimal('0.00'),
             valid_from=timezone.now(),
             valid_until=timezone.now() + timezone.timedelta(days=30),
             usage_limit=1,
@@ -359,4 +359,5 @@ class Referral(models.Model):
 
     def __str__(self):
         return f"{self.referrer.email} referred {self.referred_user.email}"
+    
 

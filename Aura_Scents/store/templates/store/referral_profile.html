@@ -5,85 +5,96 @@
 
 {% block content %}
 <section class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h2 class="text-3xl font-playfair font-bold text-purple-800 mb-6">My Referral Program</h2>
+<div class="container mx-auto flex gap-12">
+{% include 'store/user_sidebar.html' %}
 
-        <!-- Referral Code Section -->
-        <div class="mb-8">
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">Your Referral Code</h3>
-            <div class="flex items-center space-x-4">
-                <span class="text-lg font-mono bg-gray-100 p-2 rounded">{{ referral_code }}</span>
-                <button onclick="navigator.clipboard.writeText('{{ referral_code }}'); alert('Referral code copied!')"
-                        class="text-purple-700 hover:text-purple-500 font-medium">
-                    Copy
-                </button>
-            </div>
-        </div>
+<div class="w-3/4 bg-white p-8 rounded-lg shadow-lg">
+<h2 class="text-3xl font-playfair font-bold text-purple-800 mb-6">My Referral Program</h2>
 
-        <!-- Share via Email -->
-        <div class="mb-8">
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">Share via Email</h3>
-            <a href="mailto:?subject=Join Aura Scents&body=Hey! Join Aura Scents and get 15% off your first purchase using my referral code: {{ referral_code }}%0D%0A%0D%0ARegister here: {{ request.scheme }}://{{ request.get_host }}{% url 'register_page' %}"
-               class="inline-flex items-center px-4 py-2 bg-pink-500 text-white rounded-md hover:bg-pink-600">
-                Send Email Invite
-            </a>
-        </div>
+<!-- Referral Code Section -->
+<div class="mb-8">
+<h3 class="text-xl font-semibold text-gray-800 mb-2">Your Referral Code</h3>
+<div class="flex items-center space-x-4">
+<span class="text-lg font-mono bg-gray-100 p-2 rounded">{{ referral_code }}</span>
+<button onclick="navigator.clipboard.writeText('{{ referral_code }}'); alert('Referral code copied!')"
+class="text-purple-700 hover:text-purple-500 font-medium">
+Copy
+</button>
+</div>
+</div>
 
-        <!-- Referral Summary -->
-        <div class="mb-8">
-            <h3 class="text-xl font-semibold text-gray-800 mb-4">Referral Summary</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-gray-100 p-4 rounded">
-                    <p class="text-sm text-gray-600">Total Referrals</p>
-                    <p class="text-2xl font-bold">{{ total_referrals }}</p>
-                </div>
-                <div class="bg-gray-100 p-4 rounded">
-                    <p class="text-sm text-gray-600">Coupons Earned</p>
-                    <p class="text-2xl font-bold">{{ coupons.count }} ({{ active_coupons_count }} active)</p>
-                </div>
-                <div class="bg-gray-100 p-4 rounded">
-                    <p class="text-sm text-gray-600">Total Savings</p>
-                    <p class="text-2xl font-bold">₹{{ total_savings }}</p>
-                </div>
-            </div>
-        </div>
+<!-- Share via Email -->
+<div class="mb-8">
+<h3 class="text-xl font-semibold text-gray-800 mb-2">Share via Email</h3>
+<a href="mailto:?subject=Join Aura Scents&body=Hey! Join Aura Scents and get 15% off your first purchase using my referral code: {{ referral_code }}%0D%0A%0D%0ARegister here: {{ request.scheme }}://{{ request.get_host }}{% url 'register_page' %}"
+class="inline-flex items-center px-4 py-2 bg-pink-500 text-white rounded-md hover:bg-pink-600">
+Send Email Invite
+</a>
+</div>
 
-        <!-- Referral Activity -->
-        {% if referrals %}
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-4">Referral Activity</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Referred User</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registration Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coupon Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for referral in referrals %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ referral.referred_user.email }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ referral.created_at|date:"M d, Y" }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {% if referral.referrer_coupon.usage_count > 0 %}
-                                    ✅ Redeemed
-                                {% elif referral.referrer_coupon.is_valid %}
-                                    🔄 Pending
-                                {% else %}
-                                    ❌ Expired
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% else %}
-        <p class="text-gray-600">No referrals yet. Start sharing your code!</p>
-        {% endif %}
-    </div>
+<!-- Referral Summary -->
+<div class="mb-8">
+<h3 class="text-xl font-semibold text-gray-800 mb-4">Referral Summary</h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-gray-100 p-4 rounded">
+<p class="text-sm text-gray-600">Total Referrals</p>
+<p class="text-2xl font-bold">{{ total_referrals }}</p>
+</div>
+<div class="bg-gray-100 p-4 rounded">
+<p class="text-sm text-gray-600">Coupons Earned</p>
+<p class="text-2xl font-bold">{{ coupons.count }} ({{ active_coupons_count }} active)</p>
+</div>
+<div class="bg-gray-100 p-4 rounded">
+<p class="text-sm text-gray-600">Total Savings</p>
+<p class="text-2xl font-bold">₹{{ total_savings }}</p>
+</div>
+</div>
+</div>
+
+<!-- Referral Activity -->
+{% if referrals %}
+<div>
+<h3 class="text-xl font-semibold text-gray-800 mb-4">Referral Activity</h3>
+<div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-gray-200">
+<thead class="bg-gray-50">
+<tr>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Referred User</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registration Date</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coupon Status</th>
+</tr>
+</thead>
+<tbody class="bg-white divide-y divide-gray-200">
+{% for referral in referrals %}
+<tr>
+<td class="px-6 py-4 whitespace-nowrap">{{ referral.referred_user.email }}</td>
+<td class="px-6 py-4 whitespace-nowrap">{{ referral.created_at|date:"M d, Y" }}</td>
+<td class="px-6 py-4 whitespace-nowrap">
+{% if referral.referrer_coupon.usage_count > 0 %}
+✅ Redeemed
+{% elif referral.referrer_coupon.is_valid %}
+🔄 Pending
+{% else %}
+❌ Expired
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+{% else %}
+<p class="text-gray-600">No referrals yet. Start sharing your code!</p>
+{% endif %}
+
+<!-- Back to Profile -->
+<div class="mt-8">
+<a href="{% url 'profile' %}" class="inline-block bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-md text-base font-semibold transition">
+Back to Profile
+</a>
+</div>
+</div>
+</div>
 </section>
 {% endblock %}

@@ -341,11 +341,11 @@ background-color: #e6ffe6 !important;
 {% if coupon.coupon_type == 'percentage' %}
 {{ coupon.discount_value }}%
 {% else %}
-${{ coupon.discount_value }}
+₹{{ coupon.discount_value }}
 {% endif %}
 </span>
 </td>
-<td>${{ coupon.minimum_order_amount|default:"0" }}</td>
+<td>₹{{ coupon.minimum_order_amount|default:"0" }}</td>
 <td>{{ coupon.usage_limit|default:"Unlimited" }}</td>
 <td>{{ coupon.valid_from|date:"Y-m-d H:i" }}</td>
 <td>{{ coupon.valid_until|date:"Y-m-d H:i" }}</td>
