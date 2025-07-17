@@ -1789,7 +1789,8 @@ def checkout(request):
                 user=request.user,
                 address=address,
                 total_amount=subtotal + tax + shipping - discount,
-                payment_method=payment_method
+                payment_method=payment_method,
+                coupon=applied_coupon
             )
 
             for item in cart_data:

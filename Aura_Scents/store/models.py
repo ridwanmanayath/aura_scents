@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
-from back_office.models import User,Product,ProductVariant
-import random
+from back_office.models import *
 import datetime
 from django.utils import timezone
 from decimal import Decimal
@@ -115,9 +114,10 @@ class Order(models.Model):
     is_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=50, default='Pending')
     order_id = models.CharField(max_length=20, unique=True, blank=True)
-    razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)  # Add for Razorpay
-    refund_processed = models.BooleanField(default=False)  # New field
+    razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)
+    refund_processed = models.BooleanField(default=False)
     remarks = models.TextField(blank=True, null=True, help_text="Cancellation or return reason")
+    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
 
     def __str__(self):
         return f"Order {self.order_id} by {self.user.email}"
@@ -138,7 +138,7 @@ class Order(models.Model):
         if hasattr(self, '_subtotal'):
             return self._subtotal
         self._subtotal = sum(
-            Decimal(str(item.price)) * item.quantity 
+            Decimal(str(item.price)) * item.quantity
             for item in self.items.all()
         )
         return self._subtotal
@@ -155,13 +155,26 @@ class Order(models.Model):
 
     @property
     def discount(self):
-        """Calculate discount (100 if subtotal >= 1500)"""
+        """Calculate discount from applied coupon or default discount"""
+        if self.coupon and self.coupon.is_valid:
+            return self.coupon.apply_discount(self.subtotal)
         return Decimal('100') if self.subtotal >= Decimal('1500') else Decimal('0')
 
     @property
     def total(self):
         """Calculate total amount including all components"""
         return self.subtotal - self.discount + self.tax + self.shipping_cost
+
+    @property
+    def coupon_display(self):
+        """Get display name for the applied coupon"""
+        if not self.coupon:
+            return "Default Discount" if self.subtotal >= Decimal('1500') else None
+        if Referral.objects.filter(referrer_coupon=self.coupon).exists():
+            return "Referral Reward Coupon"
+        if Referral.objects.filter(referred_coupon=self.coupon).exists():
+            return "Welcome Coupon"
+        return "Promo Coupon"
 
     class Meta:
         ordering = ['-created_at']

@@ -108,19 +108,23 @@ Return Item
 <span>Subtotal:</span>
 <span>₹{{ order.subtotal|floatformat:2 }}</span>
 </p>
-
 {% if order.discount > 0 %}
 <p class="flex justify-between">
-<span>Discount:</span>
+<span>
+Discount
+{% if order.coupon %}
+    ({{ order.coupon_display }}: {{ order.coupon.code }})
+{% elif order.subtotal >= 1500 %}
+    (Default Discount)
+{% endif %}
+</span>
 <span class="text-green-700 font-medium">- ₹{{ order.discount|floatformat:2 }}</span>
 </p>
 {% endif %}
-
 <p class="flex justify-between">
 <span>Tax (5%):</span>
 <span>₹{{ order.tax|floatformat:2 }}</span>
 </p>
-
 <p class="flex justify-between">
 <span>Shipping Fee:</span>
 <span>
@@ -131,7 +135,6 @@ Return Item
 {% endif %}
 </span>
 </p>
-
 <p class="flex justify-between text-xl font-bold text-purple-800 border-t pt-3">
 <span>Grand Total:</span>
 <span>₹{{ order.total|floatformat:2 }}</span>
@@ -235,7 +238,6 @@ text: data.message,
 icon: 'success',
 confirmButtonColor: '#7c3aed'
 }).then(() => {
-// Reload the page to reflect changes
 window.location.reload();
 });
 } else {
@@ -310,7 +312,7 @@ processReturnItem(orderId, itemId, reason);
 }
 }
 });
-return false; // Prevent default action
+return false;
 };
 
 // Process Return Item
@@ -338,7 +340,6 @@ text: data.message,
 icon: 'success',
 confirmButtonColor: '#7c3aed'
 }).then(() => {
-// Reload the page to reflect changes
 window.location.reload();
 });
 } else {
@@ -361,7 +362,6 @@ confirmButtonColor: '#7c3aed'
 });
 }
 
-// Get CSRF Token
 function getCSRFToken() {
 let cookieValue = null;
 if (document.cookie && document.cookie !== '') {
@@ -377,7 +377,6 @@ break;
 return cookieValue;
 }
 
-// Control button visibility
 document.addEventListener('DOMContentLoaded', function() {
 const orderStatus = "{{ order.status }}";
 const cancelButtons = document.querySelectorAll('button[onclick*="showCancelModal"]');
