@@ -50,6 +50,28 @@ class LoginForm(forms.Form):
     email = forms.EmailField()
     password = forms.CharField(widget=forms.PasswordInput)
 
+# Forgot Password Form
+class ForgotPasswordForm(forms.Form):
+    email = forms.EmailField(label="Email", max_length=254)
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if not User.objects.filter(email=email).exists():
+            raise forms.ValidationError("No user is associated with this email address.")
+        return email
+
+# New Password Form
+class SetNewPasswordForm(forms.Form):
+    password1 = forms.CharField(widget=forms.PasswordInput, label="New Password")
+    password2 = forms.CharField(widget=forms.PasswordInput, label="Confirm New Password")
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get('password1')
+        password2 = self.cleaned_data.get('password2')
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords do not match")
+        return password2
+
 
 User = get_user_model()
 

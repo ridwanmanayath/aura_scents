@@ -7,7 +7,7 @@ from django.contrib import messages
 
 from django.http import Http404
 
-from .forms import RegistrationForm,LoginForm
+from .forms import *
 from .models import *
 
 import random
@@ -51,6 +51,11 @@ from django.urls import reverse
 from razorpay.errors import SignatureVerificationError
 
 from django.db import transaction
+
+# Forgot Password Import
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 
 
 
@@ -476,6 +481,75 @@ def profile_view(request):
         'user': user,
         'address': address,
     })
+
+
+def forgot_password(request):
+    if request.user.is_authenticated:
+        return redirect('home_page')
+
+    if request.method == 'POST':
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            user = User.objects.get(email=email)
+            # Generate token and uid
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            # Create reset URL
+            reset_url = request.build_absolute_uri(
+                reverse('set_new_password', kwargs={'uidb64': uid, 'token': token})
+            )
+            # Send email
+            subject = "Reset Your Password"
+            message = (
+                f"Hi {user.username},\n\n"
+                f"You requested to reset your password. Click the link below to set a new password:\n\n"
+                f"{reset_url}\n\n"
+                f"If you didn't request this, please ignore this email.\n"
+                f"The link is valid for 1 hour."
+            )
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False,
+            )
+            messages.success(request, "A password reset link has been sent to your email.")
+            return redirect('login_page')
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = ForgotPasswordForm()
+    
+    return render(request, 'store/forgot_password.html', {'form': form})
+
+def set_new_password(request, uidb64, token):
+    if request.user.is_authenticated:
+        return redirect('home_page')
+
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            form = SetNewPasswordForm(request.POST)
+            if form.is_valid():
+                user.set_password(form.cleaned_data['password1'])
+                user.save()
+                messages.success(request, "Your password has been reset successfully. Please log in.")
+                return redirect('login_page')
+            else:
+                messages.error(request, "Please correct the errors below.")
+        else:
+            form = SetNewPasswordForm()
+        return render(request, 'store/set_new_password.html', {'form': form, 'uidb64': uidb64, 'token': token})
+    else:
+        messages.error(request, "The password reset link is invalid or has expired.")
+        return redirect('forgot_password')
 
 # Edit Profile View - Fixed
 @login_required

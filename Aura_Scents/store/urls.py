@@ -13,6 +13,8 @@ urlpatterns = [
     path('register/', views.user_register, name='register_page'),
     path('otp-verify/<int:user_id>/', views.otp_verify, name='otp_verify'),
     path('otp-resend/<int:user_id>/', views.otp_resend, name='otp_resend'),
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('set-new-password/<uidb64>/<token>/', views.set_new_password, name='set_new_password'),
     path('login/', views.user_login, name='login_page'),
     path('logout/', views.user_logout, name='logout_page'),
 
