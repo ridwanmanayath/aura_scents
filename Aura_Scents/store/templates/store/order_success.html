@@ -1,23 +1,36 @@
 {% extends 'store/base.html' %}
-{% load static %}
+
+{% block title %}Order Confirmation | Aura Scents{% endblock %}
 
 {% block content %}
-<section class="container mx-auto px-4 py-12 text-center">
-    <div class="max-w-md mx-auto">
-        <img src="{% static 'images/order-success.svg' %}" alt="Order Successful" class="w-64 h-64 mx-auto mb-8">
-        
-        <h2 class="text-2xl font-bold text-green-600 mb-4">Order Placed Successfully!</h2>
-        <p class="text-gray-600 mb-2">Thank you for your purchase.</p>
-        <p class="text-gray-600 mb-6">Your order ID is: <span class="font-semibold">{{ order.order_id }}</span></p>
-        
-        <div class="flex flex-col space-y-3">
-            <a href="{% url 'order_details' order.id %}" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-md font-medium">
-                View Order Details
-            </a>
-            <a href="{% url 'home_page' %}" class="border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 px-6 rounded-md font-medium">
-                Continue Shopping
-            </a>
-        </div>
+  <!-- Thank You Section -->
+  <section class="bg-gradient-to-r from-purple-600 to-pink-600 py-16">
+    <div class="container mx-auto px-6 text-center">
+      <!-- Title -->
+      <h2 class="text-4xl font-playfair font-bold text-white mb-6">Order Completed</h2>
+
+      <!-- Separated Order Confirmation Messages -->
+      <p class="text-lg text-white mb-4 leading-relaxed max-w-lg mx-auto">
+        Thank you for your order!
+      </p>
+      
+      <p class="text-lg text-white mb-4 leading-relaxed max-w-lg mx-auto">
+        Your order is being processed and will be completed within 3-6 hours.
+      </p>
+      
+      <p class="text-lg text-white mb-8 leading-relaxed max-w-lg mx-auto">
+        We are preparing your items for shipment, and you will receive an update shortly.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-center space-x-6">
+        <a href="{% url 'products_page' %}" class="inline-block bg-green-600 hover:bg-green-500 text-white py-3 px-8 rounded-lg text-lg font-semibold transition duration-300 transform hover:scale-105">
+          Continue Shopping
+        </a>
+        <a href="{% url 'orders' %}" class="inline-block bg-pink-500 hover:bg-pink-600 text-white py-3 px-8 rounded-lg text-lg font-semibold transition duration-300 transform hover:scale-105">
+          View Order
+        </a>
+      </div>
     </div>
-</section>
+  </section>
 {% endblock %}

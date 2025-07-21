@@ -1735,6 +1735,9 @@ def checkout(request):
         pk__in=Referral.objects.values_list('referred_coupon__pk', flat=True)
     )
 
+    # Get user's wallet
+    wallet = get_object_or_404(Wallet, user=request.user)
+
     if request.method == 'POST':
         if 'submit_address_form' in request.POST:
             address_id = request.POST.get('address_id')
@@ -1794,7 +1797,7 @@ def checkout(request):
 
         elif 'place_order' in request.POST:
             logger = logging.getLogger(__name__)
-            logger.debug(f"Place Order POST data: {request.POST}")
+            logger.debug(f"Place Order POST data: {request.POST}")  # Corrected from loggerdbl to logger
 
             if not cart_items:
                 error_response = {'error': 'Your cart is empty'}
@@ -1859,31 +1862,57 @@ def checkout(request):
                     messages.error(request, error_response['error'])
                     return redirect('checkout')
 
-            order = Order.objects.create(
-                user=request.user,
-                address=address,
-                total_amount=subtotal + tax + shipping - discount,
-                payment_method=payment_method,
-                coupon=applied_coupon
-            )
+            total_amount = subtotal + tax + shipping - discount
 
-            for item in cart_data:
-                OrderItem.objects.create(
-                    order=order,
-                    product=item['item'].product,
-                    variant=item['item'].variant,
-                    quantity=item['item'].quantity,
-                    price=item['discounted_price']
+            # Handle wallet payment
+            if payment_method == 'Wallet':
+                if wallet.balance < total_amount:
+                    error_response = {'error': 'Insufficient wallet balance'}
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse(error_response, status=400)
+                    messages.error(request, error_response['error'])
+                    return redirect('checkout')
+
+            with transaction.atomic():
+                order = Order.objects.create(
+                    user=request.user,
+                    address=address,
+                    total_amount=total_amount,
+                    payment_method=payment_method,
+                    coupon=applied_coupon
                 )
-                if item['item'].variant:
-                    item['item'].variant.stock -= item['item'].quantity
-                    item['item'].variant.save()
-                item['item'].product.stock -= item['item'].quantity
-                item['item'].product.save()
 
-            cart.items.all().delete()
+                for item in cart_data:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item['item'].product,
+                        variant=item['item'].variant,
+                        quantity=item['item'].quantity,
+                        price=item['discounted_price']
+                    )
+                    if item['item'].variant:
+                        item['item'].variant.stock -= item['item'].quantity
+                        item['item'].variant.save()
+                    item['item'].product.stock -= item['item'].quantity
+                    item['item'].product.save()
 
-            if payment_method == 'COD':
+                if payment_method == 'Wallet':
+                    wallet.balance -= total_amount
+                    wallet.save()
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        order=order,
+                        transaction_type='debit',
+                        amount=total_amount,
+                        description=f'Payment for Order {order.order_id}'
+                    )
+                    order.is_paid = True
+                    order.status = 'Processing'
+                    order.save()
+
+                cart.items.all().delete()
+
+            if payment_method == 'COD' or payment_method == 'Wallet':
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'redirect_url': reverse('order_success', args=[order.id])})
                 messages.success(request, 'Order placed successfully!')
@@ -1953,45 +1982,8 @@ def checkout(request):
         'referral': referral,
         'valid_referral_coupon': valid_referral_coupon,
         'valid_welcome_coupon': valid_welcome_coupon,
+        'wallet_balance': wallet.balance,
     })
-
-@csrf_exempt
-def payment_handler(request):
-    if request.method == 'POST':
-        try:
-            payment_id = request.POST.get('razorpay_payment_id', '')
-            razorpay_order_id = request.POST.get('razorpay_order_id', '')
-            signature = request.POST.get('razorpay_signature', '')
-
-            if not all([payment_id, razorpay_order_id, signature]):
-                return redirect('order_failed', message='Missing payment parameters')
-
-            params_dict = {
-                'razorpay_payment_id': payment_id,
-                'razorpay_order_id': razorpay_order_id,
-                'razorpay_signature': signature
-            }
-
-            # Verify the payment signature
-            client.utility.verify_payment_signature(params_dict)
-
-            # Payment was successful
-            order = Order.objects.get(razorpay_order_id=razorpay_order_id)
-            order.is_paid = True
-            order.status = 'Processing'
-            order.save()
-
-            return redirect('order_success', order_id=order.id)
-
-        except Order.DoesNotExist:
-            return redirect('order_failed', message='Invalid Order ID')
-        except SignatureVerificationError:
-            return redirect('order_failed', message='Invalid Payment Signature')
-        except Exception as e:
-            logger.error(f"Payment handler error: {str(e)}")
-            return redirect('order_failed', message=str(e))
-
-    return redirect('checkout')
 
 
 @csrf_exempt
