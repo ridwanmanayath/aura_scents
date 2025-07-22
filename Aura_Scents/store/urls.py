@@ -38,7 +38,10 @@ urlpatterns = [
     path('clear-cart/', views.clear_cart, name='clear_cart'),
 
     path('checkout/', views.checkout, name='checkout'),
+    path('payment-handler/', views.payment_handler, name='payment_handler'),
+    path('payment-init/<int:order_id>/', views.payment_handler_init, name='payment_handler_init'),
     path('order-success/<int:order_id>/', views.order_success, name='order_success'),
+    path('order-failed/<str:message>/', views.order_failed, name='order_failed'),
 
 
     path('orders/', views.order_list, name='orders'),
@@ -54,14 +57,8 @@ urlpatterns = [
     path('check-email-availability/', views.check_email_availability, name='check_email_availability'),
     path('verify-email-otp/', views.verify_email_otp, name='verify_email_otp'),
     path('resend-email-otp/', views.resend_email_otp, name='resend_email_otp'),
-
-    path('payment-handler/', views.payment_handler, name='payment_handler'),
-    path('order-failed/<str:message>/', views.order_failed, name='order_failed'),
-
-    path('payment-init/<int:order_id>/', views.payment_handler_init, name='payment_handler_init'),
-
+  
     path('wallet/', views.wallet_view, name='wallet'),
-
     path('referral/', views.referral_profile, name='referral_profile'),
     
     
