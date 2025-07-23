@@ -1415,8 +1415,7 @@ def checkout(request):
             discounted_price = original_price
             if best_offer:
                 discounted_price = original_price * (
-                    Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0'))
-                )
+                    Decimal('1.0') - (best_offer.discount_percentage / Decimal('100.0')))
             cart_data.append({
                 'item': item,
                 'original_price': original_price,
@@ -1464,6 +1463,13 @@ def checkout(request):
             models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
         ).first()
 
+    # Get all valid coupons excluding referral coupons
+    referral_coupon_ids = list(Referral.objects.exclude(
+        referrer_coupon__isnull=True
+    ).values_list('referrer_coupon__id', flat=True)) + list(Referral.objects.exclude(
+        referred_coupon__isnull=True
+    ).values_list('referred_coupon__id', flat=True))
+
     valid_coupons = Coupon.objects.filter(
         is_active=True,
         valid_from__lte=timezone.now(),
@@ -1472,10 +1478,8 @@ def checkout(request):
     ).filter(
         models.Q(usage_limit__isnull=True) | models.Q(usage_count__lt=models.F('usage_limit'))
     ).exclude(
-        pk__in=Referral.objects.values_list('referrer_coupon__pk', flat=True)
-    ).exclude(
-        pk__in=Referral.objects.values_list('referred_coupon__pk', flat=True)
-    )
+        id__in=referral_coupon_ids
+    ).order_by('-discount_value')
 
     # Get user's wallet
     wallet = get_object_or_404(Wallet, user=request.user)
@@ -1539,7 +1543,7 @@ def checkout(request):
 
         elif 'place_order' in request.POST:
             logger = logging.getLogger(__name__)
-            logger.debug(f"Place Order POST data: {request.POST}")  # Corrected from loggerdbl to logger
+            logger.debug(f"Place Order POST data: {request.POST}")
 
             if not cart_items:
                 error_response = {'error': 'Your cart is empty'}
@@ -1654,50 +1658,50 @@ def checkout(request):
 
                 cart.items.all().delete()
 
-            if payment_method == 'COD' or payment_method == 'Wallet':
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({'redirect_url': reverse('order_success', args=[order.id])})
-                messages.success(request, 'Order placed successfully!')
-                return redirect('order_success', order_id=order.id)
-            else:
-                try:
-                    razorpay_order = create_razorpay_order(
-                        amount=float(order.total_amount),
-                        receipt_id=order.id
-                    )
-                    order.razorpay_order_id = razorpay_order['id']
-                    order.save()
+                if payment_method == 'COD' or payment_method == 'Wallet':
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'redirect_url': reverse('order_success', args=[order.id])})
+                    messages.success(request, 'Order placed successfully!')
+                    return redirect('order_success', order_id=order.id)
+                else:
+                    try:
+                        razorpay_order = create_razorpay_order(
+                            amount=float(order.total_amount),
+                            receipt_id=order.id
+                        )
+                        order.razorpay_order_id = razorpay_order['id']
+                        order.save()
 
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({
-                            'razorpay': True,
-                            'redirect_url': reverse('payment_handler_init', args=[order.id]),
-                            'razorpay_options': {
-                                'key': settings.RAZORPAY_API_KEY,
-                                'amount': int(float(order.total_amount) * 100),
-                                'currency': settings.RAZORPAY_CURRENCY,
-                                'name': "Aura Scents",
-                                'description': f"Order #{order.id}",
-                                'order_id': razorpay_order['id'],
-                                'handler': request.build_absolute_uri(reverse('payment_handler')),
-                                'prefill': {
-                                    'name': request.user.get_full_name() or request.user.email.split('@')[0],
-                                    'email': request.user.email,
-                                    'contact': order.address.mobile_number or '9999999999'
-                                },
-                                'theme': {'color': '#7c3aed'}
-                            }
-                        })
-                    return redirect('payment_handler_init', order_id=order.id)
-                except Exception as e:
-                    logger.error(f"Razorpay error: {str(e)}")
-                    order.status = 'Failed'
-                    order.save()
-                    error_response = {'error': f'Payment processing error: {str(e)}'}
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse(error_response, status=400)
-                    messages.error(request, error_response['error'])
-                    return redirect('checkout')
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse({
+                                'razorpay': True,
+                                'redirect_url': reverse('payment_handler_init', args=[order.id]),
+                                'razorpay_options': {
+                                    'key': settings.RAZORPAY_API_KEY,
+                                    'amount': int(float(order.total_amount) * 100),
+                                    'currency': settings.RAZORPAY_CURRENCY,
+                                    'name': "Aura Scents",
+                                    'description': f"Order #{order.id}",
+                                    'order_id': razorpay_order['id'],
+                                    'handler': request.build_absolute_uri(reverse('payment_handler')),
+                                    'prefill': {
+                                        'name': request.user.get_full_name() or request.user.email.split('@')[0],
+                                        'email': request.user.email,
+                                        'contact': order.address.mobile_number or '9999999999'
+                                    },
+                                    'theme': {'color': '#7c3aed'}
+                                }
+                            })
+                        return redirect('payment_handler_init', order_id=order.id)
+                    except Exception as e:
+                        logger.error(f"Razorpay error: {str(e)}")
+                        order.status = 'Failed'
+                        order.save()
+                        error_response = {'error': f'Payment processing error: {str(e)}'}
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse(error_response, status=400)
+                        messages.error(request, error_response['error'])
+                        return redirect('checkout')
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'get_address_form' in request.GET:
         address_id = request.GET.get('address_id')
@@ -1720,11 +1724,11 @@ def checkout(request):
         'coupon_applied': coupon_applied,
         'applied_coupon': applied_coupon,
         'coupon_message': coupon_message,
-        'free_shipping': shipping == Decimal('0'),
+        'free_shipping': shipping == Decimal('0.00'),
         'referral': referral,
         'valid_referral_coupon': valid_referral_coupon,
         'valid_welcome_coupon': valid_welcome_coupon,
-        'wallet_balance': wallet.balance,
+        'wallet_balance': wallet.balance,   
     })
 
 
