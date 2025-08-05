@@ -969,7 +969,7 @@ def order_list(request):
 @login_required
 def order_detail(request, order_id):
     order = get_object_or_404(Order, order_id=order_id, user=request.user)
-    order_items = OrderItem.objects.filter(order=order).select_related('product')
+    order_items = OrderItem.objects.filter(order=order).select_related('product', 'variant')
     shipping_address = order.address
 
     context = {
@@ -1431,7 +1431,7 @@ def checkout(request):
         cart_items = valid_items
 
     tax = subtotal * Decimal('0.05')
-    shipping = Decimal('0.00') if subtotal > Decimal('1000') else Decimal('350.00')
+    shipping = Decimal('0.00') if subtotal > Decimal('1000') else Decimal('50.00')
     discount = Decimal('0.00')
     coupon_applied = False
     applied_coupon = None
@@ -1482,7 +1482,7 @@ def checkout(request):
     ).order_by('-discount_value')
 
     # Get user's wallet
-    wallet = get_object_or_404(Wallet, user=request.user)
+    wallet, created = Wallet.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
         if 'submit_address_form' in request.POST:

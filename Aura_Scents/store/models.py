@@ -150,8 +150,8 @@ class Order(models.Model):
 
     @property
     def shipping_cost(self):
-        """Calculate shipping cost (free if subtotal > 1000, else 350)"""
-        return Decimal('0') if self.subtotal > Decimal('1000') else Decimal('350')
+        """Calculate shipping cost (free if subtotal > 1000, else 50)"""
+        return Decimal('0') if self.subtotal > Decimal('1000') else Decimal('50')
 
     @property
     def discount(self):
