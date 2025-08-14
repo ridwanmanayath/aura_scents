@@ -1,4 +1,3 @@
-
 {% extends 'back_office/base.html' %}
 
 {% block title %}Admin Dashboard - Perfume Store{% endblock %}
@@ -9,28 +8,79 @@
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-title">Total Sales</div>
-        <div class="stat-value">₹9,69,000</div>
+        <div class="stat-value">₹{{ total_sales|floatformat:2 }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-title">Total Orders</div>
-        <div class="stat-value">4,596</div>
+        <div class="stat-value">{{ total_orders }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-title">Total Users</div>
-        <div class="stat-value">3,796</div>
+        <div class="stat-value">{{ total_users }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-title">Total Products</div>
-        <div class="stat-value">1,234</div>
+        <div class="stat-value">{{ total_products }}</div>
     </div>
 </div>
 
 <div class="chart-container">
     <h2>Sales Overview</h2>
-    <div class="chart-placeholder">
-        <!-- Placeholder for chart -->
-        <p>Sales chart will be displayed here</p>
+    <div class="filter-buttons">
+        <a href="?filter=yearly" class="btn {% if current_filter == 'yearly' %}active{% endif %}">Yearly</a>
+        <a href="?filter=monthly" class="btn {% if current_filter == 'monthly' %}active{% endif %}">Monthly</a>
+        <a href="?filter=weekly" class="btn {% if current_filter == 'weekly' %}active{% endif %}">Weekly</a>
+        <a href="?filter=daily" class="btn {% if current_filter == 'daily' %}active{% endif %}">Daily</a>
     </div>
+    <canvas id="salesChart" height="100"></canvas>
+</div>
+
+<div class="top-products">
+    <h2>Top 10 Best-Selling Products</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Total Sold</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in top_products %}
+            <tr>
+                <td>{{ product.product__name }}</td>
+                <td>{{ product.total_sold }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2">No products sold yet</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="top-categories">
+    <h2>Top 10 Best-Selling Categories</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Total Sold</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in top_categories %}
+            <tr>
+                <td>{{ category.product__category__name }}</td>
+                <td>{{ category.total_sold }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2">No categories sold yet</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <div class="recent-orders">
@@ -46,28 +96,92 @@
             </tr>
         </thead>
         <tbody>
+            {% for order in recent_orders %}
             <tr>
-                <td>#12345</td>
-                <td>John Doe</td>
-                <td>Floral Essence</td>
-                <td>₹5,999</td>
-                <td><span class="status-badge status-completed">Completed</span></td>
+                <td>{{ order.order_id }}</td>
+                <td>{{ order.user.email }}</td>
+                <td>
+                    {% for item in order.items.all %}
+                        {{ item.product.name }}{% if item.variant %} ({{ item.variant.volume }}{{ item.variant.unit }}){% endif %}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td>₹{{ order.total_amount|floatformat:2 }}</td>
+                <td><span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span></td>
             </tr>
+            {% empty %}
             <tr>
-                <td>#12346</td>
-                <td>Jane Smith</td>
-                <td>Ocean Breeze</td>
-                <td>₹4,599</td>
-                <td><span class="status-badge status-processing">Processing</span></td>
+                <td colspan="5">No recent orders</td>
             </tr>
-            <tr>
-                <td>#12347</td>
-                <td>Mike Johnson</td>
-                <td>Woody Musk</td>
-                <td>₹6,299</td>
-                <td><span class="status-badge status-shipped">Shipped</span></td>
-            </tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const salesData = {{ sales_chart_data|safe }};
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: salesData.labels,
+            datasets: [{
+                label: 'Sales (₹)',
+                data: salesData.data,
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                fill: true,
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: { title: { display: true, text: 'Time Period' } },
+                y: { title: { display: true, text: 'Sales (₹)' }, beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+<style>
+.filter-buttons {
+    margin-bottom: 20px;
+}
+.filter-buttons .btn {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+}
+.filter-buttons .btn.active {
+    background-color: #4CAF50;
+    color: white;
+}
+.top-products, .top-categories {
+    margin-top: 30px;
+}
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.table th, .table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+}
+.table th {
+    background-color: #f4f4f4;
+}
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 12px;
+    color: white;
+}
+.status-pending { background-color: #FFC107; }
+.status-processing { background-color: #2196F3; }
+.status-shipped { background-color: #FF5722; }
+.status-delivered { background-color: #4CAF50; }
+.status-cancelled { background-color: #F44336; }
+</style>
 {% endblock %}

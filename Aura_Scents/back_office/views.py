@@ -38,6 +38,9 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 from django.db.models import Sum, Count
 
+from django.db.models.functions import TruncYear, TruncMonth, TruncWeek, TruncDay
+import json
+
 
 
 #Admin View
@@ -52,9 +55,78 @@ def admin_login(request):
     return render(request, 'back_office/admin_login.html', {'form': form})
 
 # Dashboard View
-@staff_member_required(login_url='admin_login') 
+@staff_member_required(login_url='admin_login')
 def admin_dashboard(request):
-    return render(request, 'back_office/admin_dashboard.html')
+    # Get filter type from request (default to 'yearly')
+    filter_type = request.GET.get('filter', 'yearly')
+
+    # Determine the date truncation and time range based on filter
+    if filter_type == 'yearly':
+        trunc = TruncYear
+        time_range = timezone.now() - timedelta(days=365 * 2)  # Last 2 years
+    elif filter_type == 'monthly':
+        trunc = TruncMonth
+        time_range = timezone.now() - timedelta(days=365)  # Last year
+    elif filter_type == 'weekly':
+        trunc = TruncWeek
+        time_range = timezone.now() - timedelta(days=90)  # Last 3 months
+    else:  # daily
+        trunc = TruncDay
+        time_range = timezone.now() - timedelta(days=30)  # Last 30 days
+
+    # Sales data for chart
+    sales_data = (Order.objects
+                  .filter(created_at__gte=time_range, is_paid=True)
+                  .annotate(period=trunc('created_at'))
+                  .values('period')
+                  .annotate(total_sales=Sum('total_amount'))
+                  .order_by('period'))
+
+    # Format sales data for Chart.js
+    labels = [item['period'].strftime('%Y') if filter_type == 'yearly' else
+              item['period'].strftime('%b %Y') if filter_type == 'monthly' else
+              item['period'].strftime('%d %b') if filter_type == 'daily' else
+              f"Week {item['period'].strftime('%U %Y')}" for item in sales_data]
+    sales_values = [float(item['total_sales']) for item in sales_data]
+
+    # Total statistics
+    total_sales = Order.objects.filter(is_paid=True).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_orders = Order.objects.count()
+    total_users = Order.objects.values('user').distinct().count()
+    total_products = Product.objects.filter(is_deleted=False).count()
+
+    # Top 10 best-selling products
+    top_products = (OrderItem.objects
+                    .filter(order__is_paid=True)
+                    .values('product__name')
+                    .annotate(total_sold=Sum('quantity'))
+                    .order_by('-total_sold')[:10])
+
+    # Top 10 best-selling categories
+    top_categories = (OrderItem.objects
+                      .filter(order__is_paid=True)
+                      .values('product__category__name')
+                      .annotate(total_sold=Sum('quantity'))
+                      .order_by('-total_sold')[:10])
+
+    # Recent orders
+    recent_orders = Order.objects.filter(is_paid=True).select_related('user').prefetch_related('items__product')[:5]
+
+    context = {
+        'total_sales': total_sales,
+        'total_orders': total_orders,
+        'total_users': total_users,
+        'total_products': total_products,
+        'sales_chart_data': json.dumps({
+            'labels': labels,
+            'data': sales_values
+        }),
+        'top_products': top_products,
+        'top_categories': top_categories,
+        'recent_orders': recent_orders,
+        'current_filter': filter_type,
+    }
+    return render(request, 'back_office/admin_dashboard.html', context)
 
 
 # Log Out View
