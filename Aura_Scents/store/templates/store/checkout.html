@@ -68,15 +68,19 @@
 <div class="space-y-4">
 <h3 class="text-xl font-semibold text-gray-800">Payment Method</h3>
 <label class="flex items-center space-x-2">
-<input type="radio" name="payment" value="COD" class="text-purple-600" checked />
+<input type="radio" name="payment" value="COD" class="text-purple-600" 
+       {% if total > 1000 %}disabled title="Cash on Delivery is not available for orders above ₹1000"{% else %}checked{% endif %} />
 <span class="text-sm text-gray-700">Cash on Delivery</span>
 </label>
 <label class="flex items-center space-x-2">
-<input type="radio" name="payment" value="Wallet" class="text-purple-600" {% if wallet_balance < total %}disabled title="Insufficient wallet balance"{% endif %} />
+<input type="radio" name="payment" value="Wallet" class="text-purple-600" 
+       {% if wallet_balance < total %}disabled title="Insufficient wallet balance"{% endif %} 
+       {% if total > 1000 and wallet_balance >= total %}checked{% endif %} />
 <span class="text-sm text-gray-700">Wallet (Balance: ₹{{ wallet_balance|floatformat:2 }})</span>
 </label>
 <label class="flex items-center space-x-2">
-<input type="radio" name="payment" value="Razorpay" class="text-purple-600" />
+<input type="radio" name="payment" value="Razorpay" class="text-purple-600" 
+       {% if total > 1000 and wallet_balance < total %}checked{% endif %} />
 <span class="text-sm text-gray-700">Razorpay</span>
 </label>
 </div>

@@ -1597,6 +1597,15 @@ def checkout(request):
             address = get_object_or_404(Address, id=address_id, user=request.user)
             payment_method = request.POST.get('payment', 'COD')
 
+            # Validate COD for orders above ₹1000
+            total_amount = subtotal + tax + shipping - discount
+            if payment_method == 'COD' and total_amount > Decimal('1000'):
+                error_response = {'error': 'Cash on Delivery is not available for orders above ₹1000.'}
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse(error_response, status=400)
+                messages.error(request, error_response['error'])
+                return redirect('checkout')
+
             for item in cart_items:
                 available_stock = item.variant.stock if item.variant else item.product.stock
                 if item.quantity > available_stock:
@@ -1728,9 +1737,8 @@ def checkout(request):
         'referral': referral,
         'valid_referral_coupon': valid_referral_coupon,
         'valid_welcome_coupon': valid_welcome_coupon,
-        'wallet_balance': wallet.balance,   
+        'wallet_balance': wallet.balance,
     })
-
 
 @csrf_exempt
 def payment_handler(request):
