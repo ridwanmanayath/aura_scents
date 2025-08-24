@@ -273,7 +273,7 @@ def product_manage(request, product_id=None):
         else:
             total_images = len(new_images)
 
-        if total_images < 3:
+        if total_images < 3:    
             error = f"At least 3 images are required. You currently have {total_images} image(s)."
             categories = Category.objects.filter(is_deleted=False, is_blocked=False)
             return render(request, 'back_office/product_manage.html', locals())
@@ -325,7 +325,7 @@ def product_manage(request, product_id=None):
                 # Delete the actual image files from storage (optional)
                 for img in images_to_remove:
                     if img.image and hasattr(img.image, 'delete'):
-                        img.image.delete(save=False)
+                        img.image.delete(save=False)    
                 
                 # Delete the database records
                 images_to_remove.delete()
@@ -566,9 +566,22 @@ def update_order_status(request, order_id):
                     item.status = new_status
                     item.save()
 
-                    # Handle refund for the specific item when status is set to Returned
-                    if new_status == 'Returned' and order.is_paid and not order.refund_processed:
-                        refund_amount = item.subtotal()
+                # Handle refund for the specific item when status is set to Returned
+                if new_status == 'Returned' and order.is_paid and not order.refund_processed:
+                    # For partial return, refund item subtotal + tax on item
+                    item_subtotal = item.subtotal()
+                    item_tax = item_subtotal * Decimal('0.05')
+                    refund_amount = item_subtotal + item_tax
+
+                    # Check if this makes the full order returned
+                    all_items = order.items.all()
+                    if all(i.status in ['Returned', 'Cancelled'] for i in all_items):
+                        # Full return: include shipping and prorate discount if needed, but since full, use total
+                        refund_amount = order.total_amount
+                        order.status = 'Returned'  # Optionally set order to Returned
+                    else:
+                        # Partial: no shipping refund, assume discount prorate but for simplicity, no adjustment here
+
                         wallet, _ = Wallet.objects.get_or_create(user=order.user)
                         WalletTransaction.objects.create(
                             wallet=wallet,
@@ -577,27 +590,31 @@ def update_order_status(request, order_id):
                             amount=refund_amount,
                             description=f"Refund for item {item.product.name} in order {order.order_id} (Returned)"
                         )
-                        wallet.balance += float(refund_amount)
+                        wallet.balance += refund_amount
                         wallet.save()
+                        order.refund_processed = True  # Set to True even for partial to prevent multiple refunds
+                        order.save()
                         logger.info(f"Refund of ₹{refund_amount} processed to wallet for item {item.id} in order {order.order_id}")
 
-                        # Restock inventory for the item
-                        product = item.product
-                        product.stock += item.quantity
-                        product.save()
-                        if item.variant:  # Check if variant exists
-                            item.variant.stock += item.quantity
-                            item.variant.save()
+                # Restock inventory for the item
+                if new_status == 'Returned':
+                    product = item.product
+                    product.stock += item.quantity
+                    product.save()
+                    if item.variant:
+                        item.variant.stock += item.quantity
+                        item.variant.save()
 
-                    # Update order status based on item statuses
-                    all_items = order.items.all()
-                    if all(item.status == 'Cancelled' for item in all_items):
-                        order.status = 'Cancelled'
-                    elif all(item.status in ['Return Requested', 'Returned'] for item in all_items):
-                        order.status = 'Return Requested'
-                    else:
-                        order.status = order.status
-                    order.save()
+                # Update order status based on item statuses
+                all_items = order.items.all()
+                if all(item.status == 'Cancelled' for item in all_items):
+                    order.status = 'Cancelled'
+                elif all(item.status in ['Return Requested', 'Returned'] for item in all_items):
+                    order.status = 'Returned'  # Changed to 'Returned' for full returns
+                else:
+                    order.status = order.status
+                order.save()
+
             else:  # Order-level status update
                 if new_status != old_status:
                     order.status = new_status
@@ -608,28 +625,20 @@ def update_order_status(request, order_id):
                     for item in order.items.all():
                         if item.status not in ['Cancelled', 'Return Requested', 'Returned']:
                             item.status = new_status
-                            item.save()
+                        item.save()
 
                     order.save()
 
                 # Handle refunds for cancellations and returns at order level
-                if new_status in ['Cancelled', 'Returned'] and not order.refund_processed and order.is_paid and order.payment_method != 'COD':
+                if new_status in ['Cancelled', 'Returned'] and not order.refund_processed and order.is_paid:
+                    # Removed payment_method != 'COD' to allow COD refunds if paid
                     refund_amount = Decimal('0.00')
                     if order.status == 'Cancelled':
-                        if order.items.count() == 1:
-                            refund_amount = order.total  # Full refund for single-item orders
-                        else:
-                            # Sum subtotal of cancelled items for multi-item orders
-                            refund_amount = sum(
-                                item.subtotal()
-                                for item in order.items.filter(status='Cancelled')
-                            )
+                        # For full cancellation at order level, refund total
+                        refund_amount = order.total_amount
                     elif order.status == 'Returned':
-                        # Refund item subtotal for returned items
-                        refund_amount = sum(
-                            item.subtotal()
-                            for item in order.items.filter(status='Returned')
-                        )
+                        # For full return at order level, refund total (includes subtotal, tax, shipping, minus discount)
+                        refund_amount = order.total_amount
 
                     if refund_amount > 0:
                         wallet, _ = Wallet.objects.get_or_create(user=order.user)
@@ -646,18 +655,18 @@ def update_order_status(request, order_id):
                         order.save()
                         logger.info(f"Refund of ₹{refund_amount} processed to wallet for order {order.order_id}")
 
-                    # Handle inventory for cancellations/returns
-                    if new_status in ['Cancelled', 'Returned']:
-                        for item in order.items.filter(status__in=['Cancelled', 'Returned']):
-                            product = item.product
-                            product.stock += item.quantity
-                            product.save()
-                            if item.variant:  # Check if variant exists
-                                item.variant.stock += item.quantity
-                                item.variant.save()
+                # Handle inventory for cancellations/returns
+                if new_status in ['Cancelled', 'Returned']:
+                    for item in order.items.filter(status__in=['Cancelled', 'Returned']):
+                        product = item.product
+                        product.stock += item.quantity
+                        product.save()
+                        if item.variant:
+                            item.variant.stock += item.quantity
+                            item.variant.save()
 
-            messages.success(request, f'Order status updated to {new_status}')
-            return redirect('order_details', order_id=order.id)
+        messages.success(request, f'Order status updated to {new_status}')
+        return redirect('order_details', order_id=order.id)
     return redirect('order_list')
 
 
